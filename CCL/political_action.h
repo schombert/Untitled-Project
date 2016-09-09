@@ -115,7 +115,7 @@ struct apply_political_action_execution {
 
 extern actionable_list_class_t<political_action, std::pair<char_id_t, char_id_t>, apply_political_action_proposal> proposals;
 extern actionable_list_class<political_action, apply_political_action_vote> political_action_voting;
-extern actionable_list_class<political_action, apply_political_action_proposal> political_action_execution;
+extern actionable_list_class<political_action, apply_political_action_execution> political_action_execution;
 
 
 extern update_record modal_influence_window;
