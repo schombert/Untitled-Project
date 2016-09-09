@@ -1,0 +1,372 @@
+YES:Yes
+NO:No
+N_SUF:[|th|st|nd|rd|th|th|th|th|th|th|th|th|th|th|th|th|th|th|th|th|th|st|nd|rd|th|th|th|th|th|th|th|st|nd|rd|th|th]
+MONTH:[||January|February|March|April|May|June|July|August|September|October|November|December]
+S_MONTH:[||Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec]
+DATE:[X,MONTH,1] [#,0][X,N_SUF,0], [#,2]
+S_DATE:[X,S_MONTH,1] [#,0], [#,2]
+M_DATE:[X,S_MONTH,0], [#,1]
+TEST:T[M,0,singular,plural]
+G_EVENT:Generic event
+FEAST:Feast
+PERFORMANCE:Public performance
+TOURNAMENT:Tournament
+GATHERING:Small social gathering
+HUNT:Hunt
+GAMES:Games of skill and luck
+MEETING:Meeting
+ED_GEN_1:Description... All members of your court(s) and their spouses will automatically be invited.
+ED_GEN_2:Description...
+EV_NEG_REL:A disagreement between [H,C,0,[N,0]] and [H,C,1,[N,1]] at the [u,[R,2]] has worsened relations between them.
+EV_POS_REL:Spending time together at the [u,[R,2]] has improved relations between [H,C,0,[N,0]] and [H,C,1,[N,1].
+TR_TOPIC:[|the value of war|the value of kindness|the value of honesty|the importance of friendship|the role of religion|self-discipline and indulgence|the value of laws|the best use of money|risk taking]
+EV_POS_TRAIT:Shared views about [X,TR_TOPIC,2] have improved relations between [H,C,0,[N,0]] and [H,C,1,[N,1]].
+EV_NEG_TRAIT:Differences in opinion about [X,TR_TOPIC,2] have worsened relations between [H,C,0,[N,0]] and [H,C,1,[N,1]].
+EV_REL_DIF:Ideological differences have worsened relations between [H,C,0,[N,0]] and [H,C,1,[N,1]].
+EV_CUL_DIF:Cultural differences have worsened relations between [H,C,0,[N,0]] and [H,C,1,[N,1]].
+EV_ENJOYED:[H,C,0,[N,0]] and [H,C,1,[N,1]] have enjoyed their time together at the [u,[R,2]] and relations between them have improved.
+INVITATION:[H,C,0,[N,0]] has invited you to a [u,[R,1]]. Will you attend?
+INVITATION_DATE:[H,C,0,[N,0]] has invited you to a [u,[R,1]] on [D,2]. Will you attend?
+INVITATION_REFUSED:[H,C,0,[N,0]] has declined your invitation.
+MISSION_NAME:[||Defensive pact against ...|Defensive pact|Nonaggression pact]
+GAR_H:Guarantee by honor
+GAR_M:Guarantee by marriage
+GAR_T:Guarantee by tribute
+DUR_I:Indefinite
+DUR_5:5 years
+DUR_10:10 years
+PRO_GEN:[|his|her|its]
+PRO_OBJ:[|him|her|it]
+CALL_TO_A1:[H,C,0,[N,0]] has called you to arms against [H,C,1,[N,1]]. Will you raise your troops?
+CALL_TO_A2:[H,C,0,[N,0]] has called you to arms against [X,PRO_GEN,[G,0]] enemies. Will you raise your troops?
+BATTLE_RESULTS:The armies of the [H,T,0,[T,0]] and the [H,T,1,[T,1]] have met on the field of battle, where [T,0] was victorious, with [#,2] casualt[M,2,y,ies], while the [T,1] suffered [#,3] casualt[M,3,y,ies].
+GL:[|have become|have stopped being]
+EF:[|enemies|friends]
+REL_CHANGE:[H,C,0,[N,0]] and [H,C,1,[N,1]] [X,GL,2] [X,EF,3].
+SEIGE_END:The [H,T,0,[T,0]] has lost the siege of [H,P,2,[L,2]] to [H,T,1,[T,1]] after [#,3] day[M,3,,s].
+CON_WAR_DEC:The [H,T,0,[T,0]] has declared a war of conquest on the [H,T,1,[T,1]].
+DJ_WAR_DEC:The [H,T,0,[T,0]] has declared a war for its dejure territory on the [H,T,1,[T,1]].
+PEACE_DEC:The [H,T,0,[T,0]] has ended hostilities with the [H,T,1,[T,1]].
+OFFER_ACC:[H,C,0,[N,0]] has accepted an offer from [H,C,1,[N,1]] to:
+YOFFER_ACC:[H,C,0,[N,0]] has accepted your offer to:
+OFFER_DEC:[H,C,0,[N,0]] has declined an offer from [H,C,1,[N,1]] to:
+YOFFER_DEC:[H,C,0,[N,0]] has declined your offer to:
+ALTERNATIVE:[H,C,0,[N,0]], when faced with the choice posed by [H,C,1,[N,1]], has decided to:
+YALTERNATIVE:[H,C,0,[N,0]] has decided to:
+ENVOY_RET:Envoy returns on:
+OFFER_EXPIRE:Offers expire on:
+L_HOST:Host event
+PACT_NAME:[||Defensive pact|Defensive pact against...|Nonaggression pact]
+PACT_OFFER:Offer of a [u,[X,PACT_NAME,0]]
+CUR_PEACE_OFFER:Current peace offer
+WAR_GOALS:Your war goals
+PACT_CREATED:Pact created
+PACT_DECLINED:Pact declined
+PACT_ENDED:Pact ended
+PACT_EXPIRE:Pact expiring
+L_INVITATION:Invitation
+L_CTOARMS:Call to arms
+OFFER_ACCEPTED:Offer accepted
+L_WAR_DEC:War declared
+L_PEACE:Peace
+L_SEIGE:Siege concluded
+L_REL_CHANGE:Change in relationship
+L_BAT_RESULTS:Battle results
+OFFER_DECLINED:Offer declined
+L_ALTERNATIVE:Alternative taken
+NO_WAR_CON:-Cannot declare war on this target
+POS_TRAIT:[|peaceful|kind|honest|extrovert|devout|measured|just|decadent|cautious]
+NEG_TRAIT:[|aggressive|cruel|deceitful|introvert|cynical|emotional|arbitrary|miserly|reckless]
+P_TRANSFER:Cede [H,P,0,[L,0]] to [H,C,1,[N,1]]
+WAR_STATUS:Attacker war score: [#,0] + [#,1]
+WAR_PARTICIPANT:With [H,C,0,[N,0]]
+TITLE_T:[||Emperor|King|Duke|Earl]
+EX_NAME:[N,0], [X,TITLE_T,1] of [t,2]
+COM_TITLE:[X,TITLE_T,0] of [t,1]
+TITLE_PRE:[|||Kingdom of|Duchy of|County of]
+TITLE_DISP:[X,TITLE_PRE,0] [t,1]
+LOCK_UNITS:Lock units
+REM_ALL:Remove all
+ADD_ALL:Add all
+AT_WW:At war with
+CLOSE:Close
+SHOW_EXPLANATION:Show provinces involved in peace deal on the map
+L_PROVINCE:Province: [L,0]
+L_CHARACTER:Character
+LIVING_MEMBERS:Living members:
+DECEASED_MEMBERS:Deceased members:
+L_TITLE:Title
+BACK:Back
+AMOUNT:Amount:_
+FROM_CH:From: [H,C,0,[N,0]]
+AGAINST_CH:Against: [H,C,0,[N,0]]
+A_MAKE_OFFER:Make offer
+A_ACTIONS:Actions
+A_ALTERNATIVE:Alternative
+A_CON_WAR:Declare war of conquest
+A_DJ_WAR:Declare war for dejure territory
+A_PEACE:End hostilities
+A_TREATY:Peace Treaty
+A_ENFORCE:Enforce peace
+A_T_LAND:Transfer land
+A_HOST:Host event
+A_TO:To
+A_WITH:With
+A_ON:On
+A_OPT1:Option 1
+A_OPT2:Option 2
+A_PROV:Provinces
+A_YEARS:Years:
+A_GUESTS:Guests
+A_TYPE:Type
+NO_MIS_SLOTS:-No more slots for missions
+E_AGAINST:Against: [H,C,0,[N,0]]
+E_TO:To: [H,C,0,[N,0]]
+NO_MONEY:-insufficient wealth
+ALREADY_PREP:-already preparing an event
+E_COST:Total cost:~
+E_TIME:Months to prepare:~
+NO_TARGET:No target selected
+G_HONOR:Their honor
+G_MARRIAGE_OF:The marriage of: [H,C,0,[N,0]]
+G_MAND:and: [H,C,0,[N,0]]
+TO:To: [H,C,0,[N,0]]
+G_TRIBUTE:A tribute of:~
+E_DURATION:Duration:~
+PACT_HEADER:[||Defensive pact between:|Targeted defensive pact between:|Nonaggression pact between:]
+EX_NAME_AND:[H,C,0,[n,0]] and
+INDEFINATE_D:Indefinite duration
+UNTIL_M:Until: [R,M_DATE]
+GAR_BY:Guaranteed by:
+NO_GAR:No guarantee
+EXTEND_PROMPT:Extend this pact for 5 years?
+LONG_PACT_DECLINED:Our offer of the following pact has been declined:
+CH_WILL:[H,C,0,[N,0]] will
+OFFER_FROM:Offer from:~
+ALT_FROM:Alternative from:~
+INSTEAD_OF:Instead of:
+VALUE:Value:~
+COST:Cost:~
+DIP_MIS_FOR:Diplomatic missions for: [H,C,0,[N,0]]
+W_UNTIL:With [H,C,2,[N,2]] until [R,M_DATE]
+SHOW_PLANS:show plans
+SHOW_MESSAGE:show messages for
+TAKE_ACTION:take action
+SHOW_WARS:show wars
+L_PACTS:Pacts:
+MAP_CK:Show on map
+L_PARENTS:Parents:
+L_SPOUSE:Spouse:
+L_CHILDREN:Children:
+L_SIBLINGS:Siblings:
+L_FRIENDS:Friends:
+L_ENEMIES:Enemies:
+L_HATED:Hated:
+L_TREATIES:Peace treaties:
+L_TRAITS:Traits:
+L_AGE:Age:~
+L_WEALTH:Wealth: [f,0]
+L_PROJ_INCOME:Projected income:~
+L_TROOPS:Troops: μ=[f,0] σ=[f,1]
+L_NOARMY:No army
+SET_FOCUS:Set focus
+SHOW_ON_MAP:Show on map
+T_RELATIONSHIPS:Relations
+T_POLITICAL:Political
+T_TITLES:Titles
+T_DETAILS:Details
+T_COURT:Court
+L_COURTIERS:Courtiers:
+SHOW_DJ:Show de jure territory
+SHOW_CONTROL:Show controlled territory
+SELECT_C:Select character
+START_MISSION:Start mission
+CANCEL:Cancel
+OPT_DEC_WAR:Declare war of conquest
+OPT_HOST:Host event
+ADD_FAMILY:Add family member
+ADD_REALM:Add realm member
+ADD_RECENT:Add recent character
+OFFER_PEACE:Offer peace
+NEW_MISSION:Start new mission
+ACCEPT:Accept
+DECLINE:Decline
+POSTPONE:Postpone
+T_TERRITORY:Territory
+T_VASSALS:Vassals
+T_LAWS:Laws
+CANCEL_MISSION:Cancel mission
+ACCEPT_OFFER:Accept offer
+DECLINE_OFFER:Decline offer
+MAP_WARS:Map: Wars
+MAP_VASSALS:Map: Vassals
+MAP_ECONOMY:Map: Economy
+MAP_POLITICAL:Map: Political
+MAKE_DEMAND:Make demand
+MAKE_OFFER:Make offer
+UPDATE:Update
+PEACE_OFFER_TO:Peace offer to: [H,C,0,[N,0]]
+SELECT:Select
+T_RELIGION:Religion
+T_HOLDINGS:Holdings
+T_ECONOMY:Economy
+T_INTRIGUE:Intrigue
+PROPOSE:Propose
+ADD_GAR:Add guarantee
+L_ANALYTIC:Analytic:~
+L_MARTIAL:Martial:~
+L_SOCIAL:Social:~
+L_INTRIGUE:Intrigue:~
+L_HONORABLE:Honorable:~
+L_PEACEFUL:Peaceful:~
+L_ACTIVITY:Activity:~
+L_PEACE_OFFER:Peace offer
+PEACE_OFFER_BODY:[H,C,0,[N,0]] offers you peace on the following terms:
+GOAL_DEF:War reparations ([#0]) to [H,C,1,[N,1]]
+GOAL_CONQ:Conquest by [H,C,0,[N,0]]
+GOAL_DEJ:Return of the [H,T,0,[T,0]]'s de jure territory to [H,C,1,[N,1]]
+L_GOAL_DEF:War reparations
+L_GOAL_CONQ:Conquest
+L_GOAL_DEJ:Return of [H,T,0,[T,0]]'s de jure territory
+GOAL_NAMES:[|Reparations|Conquest|Dejure claims]
+PEACE_ACCOUNCEMENT:Hostilities ended
+P_OFFER_ACCEPTED:[H,C,1,[N,1]] has accepted peace from [H,C,0,[N,0]] on the following terms:
+P_ENFORCED:[H,C,0,[N,0]] has enforced the following peace on [H,C,1,[N,1]]:
+P_ENFORCED_US:[H,C,0,[N,0]] has enforced the following peace on us:
+RESET:Reset
+DEAL_INVALID:This peace deal is no longer valid.
+L_ERROR:Error
+DISTANCE:Distance
+L_DISTANCE:Distance: [#,0]
+EXPENSE_NAME:[|ERR|Preparing an event|War costs|Tribute|Espionage]
+INCOME_NAME:[|Tribute]
+FORMAT_EXPENSE:-[f,0]: [X,EXPENSE_NAME,1]
+FORMAT_EX_INCOME:[f,0]: [X,INCOME_NAME,1]
+FORMAT_INCOME:[f,0]: Projected income
+EXPENSE_L:Monthly expenses:
+INCOME_L:Other income
+T_FINANCES:Finances
+DEF_CALL:Defensive call to arms
+DEF_CALL_BODY:[H,C,0,[N,0]] has called upon us to honor our defensive pact against [H,C,1,[N,1]]. Will you raise your troops?
+DEF_CALL_HONORED:[H,C,0,[N,0]] has honored [X,PRO_GEN,[G,0]] defensive pact with us.
+DEF_CALL_DISHONORED:[H,C,0,[N,0]] has dishonored [X,PRO_GEN,[G,0]] defensive pact with us.
+DIPLO_MISSIONS:Show diplomatic missions
+ESPIONAGE_MISSIONS:Show espionage missions
+ENVOY_RECEIVED:Envoy received
+ENVOY_NOTICE:[H,C,0,[N,0]], an envoy from [H,C,1,[N,1]], has arrived at your court.
+EV_LABEL:Envoy: [H,C,0,[N,0]]
+ENOVY_AUTOMATIC:Automatic
+STRESS_TT:Costs [#,0] stress
+INSUFFICIENT_STR:Character too stressed to choose this option
+ENVOY_PACT_OFFER:During the meeting with the envoy from [H,C,0,[N,0]], the proposal listed below has been reached as potentially mutually beneficial. Will you send the envoy back with an offer of this pact?
+ENVOY_RESULT:Proposal from envoy
+ENVOY_RETURN:Your envoy has returned from [H,C,0,[N,0]] with the following proposal:
+MISSION_TYPE:Mission type:~
+WAR_OVERVIEW:Wars Involving [H,T,0,[T,0]]
+L_PARTICIPANT:Participant: [H,T,0,[T,0]]
+L_GOALS:War goals:
+NONE:None
+L_LEADER:War leader: [H,C,0,[N,0]]
+WAR_NAME:[T,0] vs [T,1]
+L_FRONT:Front: [H,P,0,[L,0]]
+VS:[#,0] vs [#,1]
+OTHER_WARS:Participating in wars with:
+NAME_HLINK:[H,C,0,[N,0]]
+INSUF_SCORE:War score too low to offer peace
+INSUF_LEVERAGE:Insufficient leverage to enforce peace
+I_OPPORTUNITY:Intrigue opportunity
+I_EVENT:Intrigue event
+I_RECRUIT_S:[H,C,0,[N,0]] has successfully recruited [H,C,1,[N,1]] to help in [x,2].
+I_RECRUIT_F:[H,C,0,[N,0]] failed in recruiting [H,C,1,[N,1]] to help in [x,2].
+I_RECRUIT_S_GEN:[H,C,0,[N,0]] has successfully recruited a servant to help in [x,2].
+I_RECRUIT_F_GEN:[H,C,0,[N,0]] failed in recruiting a servant to help in [x,2].
+I_RECRUIT_PLAYER:A stranger has approached you about [x,1] as part of an apparent [x,2] targeted at [H,C,0,[N,0]]. Will you assist this plot?
+I_PLOT_FAILURE_ESCAPE:The [x,2] targeted at [H,C,0,[N,0]] has failed, but [H,C,1,[N,1]] has managed to escape.
+I_PLOT_FAILURE_CAPTURE:The [x,2] targeted at [H,C,0,[N,0]] has failed, and [H,C,1,[N,1]] has been captured.
+I_PLOT_FAILURE_DEATH:The [x,2] targeted at [H,C,0,[N,0]] has failed, and [H,C,1,[N,1]] has been killed.
+PRO_NOM:[|he|she|it]
+I_EVENT_BRIBE_SERVANTS_T:[H,C,0,[N,0]] would like to recruit some of the local servants to act as go-betweens. This would cost [f,1]. Should [X,PRO_NOM,[G,0]] proceed?
+I_EVENT_BRIBE_SERVANTS_S:[H,C,0,[N,0]] succeeded in recruiting the servants.
+I_EVENT_BRIBE_SERVANTS_F:[H,C,0,[N,0]] failed to recruit the servants.
+I_RUMOR_GATHER:gathering rumors
+I_PLANT_EVIDENCE:planting evidence
+PLOT_TYRANNY:plot to fabricate evidence of tyranny
+PLOT_AGGRESSION:plot to fabricate evidence of plans for expansion
+PLOT_DISHONORABLE:plot to fabricate evidence of dishonorable behavior
+SPY_LABEL:Agent: [H,C,0,[N,0]]
+MISSION_LABEL:Mission:~
+TARGET_LABEL:Target: [H,C,0,[N,0]]
+M_COST:Monthly cost: [f,0]
+EMPTY:[x,0]
+SM_PROGRESS:Stage: [#,0]/[#,1]
+ESP_MIS_FOR:Espionage missions for: [H,C,0,[N,0]]
+I_TYRANY_TRESULT:Evidence, clearly fabricated, has appeared suggesting that you have acted unjustly towards your subjects, and your reputation has suffered.
+I_TYRANY_SRESULT:[H,C,0,[N,0]] has successfully planted evidence suggesting that [H,C,1,[N,1]] has acted unjustly towards [X,PRO_GEN,[G,1]] subjects, harming [X,PRO_GEN,[G,1]] reputation.
+I_AGGRESSION_TRESULT:Evidence, clearly fabricated, has appeared suggesting that you are preparing for war against one of your neighbors, and your reputation has suffered.
+I_AGGRESSION_SRESULT:[H,C,0,[N,0]] has successfully planted evidence suggesting that [H,C,1,[N,1]] is preparing a war against one of [X,PRO_GEN,[G,1]] neighbors, harming [X,PRO_GEN,[G,1]] reputation.
+I_DISHONORABLE_TRESULT:Evidence, clearly fabricated, has appeared suggesting that you have engaged in dishonorable conduct, and your reputation has suffered.
+I_DISHONORABLE_SRESULT:[H,C,0,[N,0]] has successfully planted evidence suggesting that [H,C,1,[N,1]] has acted dishonorably, harming [X,PRO_GEN,[G,1]] reputation.
+NO_MISSION:No mission selected
+I_PLOT_REVEALED:Your involvement in the plot has been revealed, which will affect your reputation.
+I_PLOT_REVEALED_TARGET:An apparent [x,0] targeted at you has been foiled. It appears that [H,C,1,[N,1]] was behind the plot.
+I_PLOT_FOILDED_TARGET:An apparent [x,0] targeted at you has been foiled, but the source of the plot remains unknown.
+MISSION_EXISTS:Mission already in progress
+PACT_TRIBUTE_EX:[H,C,0,[N,0]] was unable to afford to pay the tribute and has broken the pact.
+BREAK_PACT:Break pact
+BREAK_PACT_WARNING:Breaking this pact will reduce your honor by [f,0]. Proceed?
+T_CONTROL:Control
+TAX_LABEL:Total tax income: [f,0]
+CULTURE_LABEL:Culture: [H,U,0,[c,0]]
+RELIGION_LABEL:Religion: [H,R,0,[r,0]]
+CR_BODY:[T,0]   tax: [f,1]% ([F,2])
+DJ_ON:Dejure in [#,0]
+TITLE_NAME:[T,0]
+DJ_UNTIL:Dejure until [#,0]
+CB_LABEL:Controlled by
+DJ_LABEL:Dejure part of
+PROCEED:Proceed
+C_OPINION:Council opinion
+C_OPPOSED:Council members opposed:
+C_INFAVOR:Council members in favor:
+APPROVE:Approve
+ABSTAIN:Abstain
+OPPOSE:Oppose
+C_INTRO:[H,C,0,[N,0]] is considering the following action:
+C_FINAL:How will you advise [X,PRO_OBJ,[G,0]]?
+NOCB_D:Declaring a war of conquest against [H,C,0,[N,0]]
+PACT_D:Entering into the following pact:
+DPACT_D:Dishonoring [X,PRO_GEN,[G,0]] pact with [H,C,1,[N,1]] when being called to arms against [H,C,2,[N,2]].
+MAP_TAX_LABEL:Tax: [f,0]
+WAR_WINDOW_OVERVIEW:Overview
+WAR_WINDOW_FRONTS:Fronts
+WAR_WINDOW_NO_SELECTION:No war selected
+PROPOSAL:Proposal
+PROPOSAL_REFUSED:[H,C,0,[N,0]] has rejected your proposal to:
+PROPOSAL_ACCEPTED_EXEC:[H,C,0,[N,0]] has agreed to officially consider your proposal to:
+PROPOSAL_ACCEPTED_VOTE:[H,C,0,[N,0]] has agreed to put to a vote your proposal to:
+INFLUENCE_TYPE:[|appealed to your friendship|offered you a favor|called in a favor|blackmailed you]
+INFLUENCE_WAR_WITH:going to war with [H,C,3,[N,3]]
+INFLUENCE_POS_FULL:[H,C,0,[N,0]] has [X,INFLUENCE_TYPE,1] for [x,2].
+INFLUENCE_NEG_FULL:[H,C,0,[N,0]] has [X,INFLUENCE_TYPE,1] against [x,2].
+PROPOSAL_MADE_INTRO:[H,C,0,[N,0]] has proposed the following:
+PROPOSAL_MADE_EXEC:Will you officially consider it?
+PROPOSAL_MADE_VOTE:Will you put it to a vote?
+RELEVENT_INFLUENCES:Relevant influences:
+VOTE:Vote
+VOTE_INTRO:A vote has been called for the following proposal:
+VOTE_END:Will you vote in favor of it?
+ACTION_INTRO:Your council has voiced their opinions on the following proposal:
+ACTION_END:Will you proceed?
+BLANK_SPACE:~
+CALL_FAVOR:Call in a favor
+OFFER_FAVOR:Offer a favor
+APPL_FRIENDSHIP:Appeal to your friendship
+BLACKMAIL:Leverage blackmail
+PROPOSAL_REACT:Your reaction to the following proposal:
+DONE:Finished
+INFLUENCE_NO_BLACKMAIL:You have no blackmail to leverage this person with
+INFLUENCE_NOT_FR:You are not friends with this person
+INFLUENCE_NO_FAVORS:This person does not owe you any favors
+INFLUENCE_FAV_OWED:This person owes you favors
+INFLUENCE_ALREADY_APPLIED:You have applied this sort of influence to this person for this issue
+SELECT_STANCE:You must select a stance before applying influence

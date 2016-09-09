@@ -1,0 +1,806 @@
+include = living_data
+include = envoys
+include = laws
+
+em_selection = {
+	type = window
+	w = 400
+	h = 400
+	object = "struct emission_selection"
+	envoy_selected = {
+		type = text
+		text = EV_LABEL
+		param = .envoy
+	}
+	{
+		type = conditional
+		if = "!valid_ids(obj.envoy)"
+		{
+			type = text
+			pos = same
+			text = ENOVY_AUTOMATIC
+		}
+	}
+	envoy_c_select = {
+		type = character_selection
+		h = 22
+		w = 170
+		text = SELECT_C
+	}
+	{
+		type = text
+		text = MISSION_TYPE
+	}
+	mission_type = {
+		pos = same
+		type = uiDropDown
+		dynamic
+		h = 22
+		w = 170
+	}
+	content_panes = {
+		type = uiPanes
+		w = -1
+		h = -33
+		def_pact = {
+			type = pane
+			
+		}
+		def_against = {
+			type = pane
+			{
+				type = text
+				text = E_AGAINST
+				param = .target
+			}
+			def_c_select = {
+				type = character_selection
+				pos = same
+				h = 22
+				w = 170
+				text = SELECT_C
+			}
+		}
+		non_aggression {
+			type = pane
+			{
+				type = text
+				text = E_TO
+				param = .target
+			}
+			na_c_select = {
+				type = character_selection
+				pos = same
+				h = 22
+				w = 170
+				text = SELECT_C
+			}
+		}
+	}
+	start_mission = {
+		type = ui_button_disable
+		h = 22
+		w = 140
+		x = 10
+		text = START_MISSION
+	}
+	cancel = {
+		type = uiButton
+		h = 22
+		w = 80
+		pos = same
+		text = CANCEL
+	}
+}
+
+emission_display = {
+	type = window
+	w = 400
+	h = 700
+	object = "admin_id_t"
+	{
+		type = text
+		text = DIP_MIS_FOR
+		textformat = header_text
+		param = "head_of_state(obj, l)"
+	}
+	new_mission = {
+		type = ui_button_disable
+		h = 25
+		w = 150
+		text = NEW_MISSION
+	}
+	contents = {
+		type = uiScrollView
+		w = -1
+		h = -5
+		{
+			type = list
+			contentfunction = display_individual_mission
+			start = "envoy_missions.range(obj,l).first"
+			end = "envoy_missions.range(obj,l).second"
+			param = obj
+		}
+	}
+}
+
+include = WarPane
+include = wardata
+
+war_participant = {
+	object =  "std::pair<admin_id_t, std::vector<wargoal>>"
+	{
+		type = text
+		text = L_PARTICIPANT
+		param = "get_object(obj.first, l).associated_title"
+	}
+	
+	{
+		type = conditional
+		if = ".second.size() != 0"
+		{
+			{
+			type = text
+			text = L_GOALS
+			}
+		}
+	}
+	{
+		x = 20
+		type = list
+		contentfunction = display_goal_name
+		iteration = .second
+	}
+	
+}
+
+struct = newfront
+struct = wargoal
+
+# front = {
+#	objects = {
+#		"std::pair<newfront, newfront>"
+#		bool
+#		war_id_t
+#		admin_id_t
+#	}
+#	label = {
+#		type = text
+#		text = L_FRONT
+#		param = "(p1 ? obj.first.target : obj.second.target)"
+#	}
+#	lock = {
+#		dynamic
+#		type = ui_toggle_button
+#		w = 28
+#		h = 28
+#		fill = {
+#			lock_tex.get(0,0)
+#			lock_tex.get(1,0)
+#		}
+#		tooltip = LOCK_UNITS
+#		toggle = "(p1 ? obj.first.locked : obj.second.locked)"
+#	}
+#	leftarrow = {
+#		dynamic
+#		type = uiGButton
+#		pos = same
+#		w = 28
+#		h = 28
+#		tooltip = REM_ALL
+#		fill = arrows_tex.get(0,0)
+#	}
+#	bar = {
+#		dynamic
+#		type = uiBar
+#		pos = same
+#		h = 28
+#		w = 150
+#		param = "(p1 ? obj.first.allocation : obj.second.allocation)"
+#	}
+#	rightarrow = {
+#		dynamic
+#		type = uiGButton
+#		pos = same
+#		w = 28
+#		h = 28
+#		tooltip = ADD_ALL
+#		fill = arrows_tex.get(1,0)
+#	}
+#	vs = {
+#		type = text
+#		text = VS
+#		pos = same
+#		params = {
+#			"static_cast<int>(totaltroops(p2, p1, l) * (p1 ? obj.first.allocation : obj.second.allocation))"
+#			"static_cast<int>(totaltroops(p2, !p1, l) * (!p1 ? obj.first.allocation : obj.second.allocation))"
+#		}
+#	}
+#}
+
+name = {
+	object = "char_id"
+	{
+		type = text
+		text = NAME_HLINK
+	}
+}
+
+war = {
+	type = window
+	w = 600
+	h = 400
+	objects = {
+		"admin_id_t"
+		"war_id_t"
+	}
+	label = {
+		type = text
+		text = WAR_OVERVIEW
+		textformat = header_text
+		param = "get_object(obj, l).associated_title"
+	}
+	war_against = {
+		type = uiDropDown
+		dynamic
+		h = 22
+		w = 370
+	}
+	info_selection = {
+		pos = same
+		type = uiDropDown
+		static
+		h = 22
+		w = 170
+	}
+	content_panes = {
+		type = uiPanes
+		w = -1
+		h = -5
+
+		pariticipant_pane = {
+			type = pane
+			{
+				type = conditional
+				if = "valid_ids(p1)"
+
+				label = {
+					type = text
+					text = WAR_NAME
+					textformat = header_text
+					params = {
+						"get_object(get_object(p1, l).attacker.primary, l).associated_title"
+						"get_object(get_object(p1, l).defender.primary, l).associated_title"
+					}
+				}
+
+				status = {
+					type = text
+					text = WAR_STATUS
+					params = {
+						"static_cast<int>(slow_war_base_value(p1, l))"
+						"static_cast<int>(slow_war_prediction(p1, l))"
+					}
+				}
+
+				{
+					type = conditional
+					if = "get_diplo_decider(get_object(is_agressor(obj, p1, l) ? get_object(p1, l).attacker.primary : get_object(p1, l).defender.primary, l), l) == global::playerid"
+
+					offer_peace = {
+						type = ui_button_disable
+						dynamic
+						h = 22
+						w = 100
+						text = OFFER_PEACE
+					}
+					enforce_peace = {
+						type = ui_button_disable
+						dynamic
+						pos = same
+						h = 22
+						w = 100
+						text = A_ENFORCE
+					}
+				}
+
+				{
+					type = uiScrollView
+					x = 5
+					w = 280
+					h = -1
+
+					{
+						type = list
+						function = war_participant::generate
+						vector = "pack_war_participants(p1, true, vec, l)"
+					}
+				}
+				{
+					type = uiScrollView
+					x = 5
+					w = -5
+					h = -1
+					pos = same
+
+					{
+						type = list
+						function = war_participant::generate
+						vector = "pack_war_participants(p1, false, vec, l)"
+					}
+				}
+			}
+		}
+		fronts_pane = {
+			type = pane
+			{
+				type = conditional
+				if = "valid_ids(p1)"
+#				{
+#					type = list
+#					iteration = "get_object(p1, l).fronts"
+#					params = {
+#						"is_agressor(obj, p1, l)"
+#						p1
+#						obj
+#					}
+#				}
+			}
+		}
+	}
+	back = {
+		type = uiGButton
+		pos = abs
+		w = 20
+		h = 20
+		x = -40
+		tooltip = BACK
+		fill = back_tex
+	}
+}
+
+include = spies
+
+sm_select = {
+	type = window
+	w = 480
+	h = 300
+
+	object = "struct smission_selection"
+	spy_selected = {
+		type = text
+		text = SPY_LABEL
+		param = .spy
+	}
+	{
+		type = conditional
+		if = "!valid_ids(obj.spy)"
+		{
+			type = text
+			pos = same
+			text = ENOVY_AUTOMATIC
+		}
+	}
+	spy_c_select = {
+		type = character_selection
+		h = 22
+		w = 170
+		text = SELECT_C
+	}
+	target_selected = {
+		type = text
+		text = TARGET_LABEL
+		param = .target
+	}
+	{
+		type = conditional
+		if = "!valid_ids(obj.target)"
+		{
+			type = text
+			pos = same
+			text = NONE
+		}
+	}
+	target_c_select = {
+		type = character_selection
+		h = 22
+		w = 170
+		text = SELECT_C
+	}
+	{
+		type = text
+		text = MISSION_LABEL
+	}
+	mission_type = {
+		pos = same
+		type = uiDropDown
+		dynamic
+		h = 22
+		w = 400
+	}
+	{
+		type = conditional
+		if = ".type != 0"
+		{
+			type = text
+			text = M_COST
+			param = "plot_by_type(obj.type).monthly_cost"
+		}
+	}
+	start_mission = {
+		type = ui_button_disable
+		h = 22
+		w = 140
+		x = 10
+		text = START_MISSION
+	}
+	cancel = {
+		type = uiButton
+		h = 22
+		w = 80
+		pos = same
+		text = CANCEL
+	}
+}
+
+spy_mission_ui = {
+	object = "class spy_mission"
+	
+	{
+		type = text
+		text = MISSION_TYPE
+	}
+	{
+		type = text
+		text = EMPTY
+		pos = same
+		param = "plot_by_type(obj.type).name"
+	}
+	{
+		type = text
+		text = SPY_LABEL
+		param = .spy
+	}
+	{
+		type = text
+		text = TARGET_LABEL
+		param = .target
+	}
+	{
+		type = text
+		text = M_COST
+		param = "plot_by_type(obj.type).monthly_cost"
+	}
+	{
+		type = text
+		text = SM_PROGRESS
+		params = {
+			.stage
+			"plot_by_type(obj.type).stages.size()"
+		}
+	}
+	cancel = {
+		dynamic
+		type = uiButton
+		h = 22
+		w = 80
+		text = CANCEL
+	}
+}
+
+smission_display = {
+	type = window
+	w = 400
+	h = 650
+	object = "admin_id_t"
+	{
+		type = text
+		text = ESP_MIS_FOR
+		textformat = header_text
+		param = "head_of_state(obj, l)"
+	}
+	new_mission = {
+		type = ui_button_disable
+		h = 25
+		w = 150
+		text = NEW_MISSION
+	}
+	contents = {
+		type = uiScrollView
+		w = -1
+		h = -5
+		{
+			type = list
+			contentfunction = spy_mission_ui::generate
+			start = "transforming_iterator<sm_iter_f, decltype(spy_missions.range(obj,l).first)>(spy_missions.range(obj,l).first)"
+			end = "spy_missions.range(obj,l).second"
+		}
+	}
+}
+
+include = prov_control
+
+cr_display = {
+	object = "unsigned int"
+	{
+		type = small_tbutton
+		param = "get_object(global::control_pool.get(obj,l).ad_controller, l).associated_title"
+	}
+	{
+		type = text
+		pos = same
+		text = CR_BODY
+		y = 10
+		params = {
+			"get_object(global::control_pool.get(obj,l).ad_controller, l).associated_title"
+			"global::control_pool.get(obj,l).tax * 100.0"
+			"global::control_pool.get(obj,l).tax * get_object(global::control_pool.get(obj,l).province).tax"
+		}
+	}
+	{
+		type = conditional
+		if = "!is_dj(global::control_pool.get(obj,l).province, get_object(global::control_pool.get(obj,l).ad_controller, l).associated_title ,l)"
+		{
+			type = text
+			y = 10
+			x = 15
+			pos = same
+			text = DJ_ON
+			param = "dejure_year(get_object(global::control_pool.get(obj,l).ad_controller, l).associated_title, global::control_pool.get(obj,l))"
+		}
+	}
+}
+
+dj_display = {
+	object = "unsigned int"
+	{
+		type = small_tbutton
+		param = "global::dj_pool.get(obj,l).owner"
+	}
+	{
+		type = text
+		y = 10
+		pos = same
+		text = TITLE_NAME
+		param = "global::dj_pool.get(obj,l).owner"
+	}
+	{
+		type = conditional
+		if = "!is_controlled_under_t(global::dj_pool.get(obj,l).province, global::dj_pool.get(obj,l).owner, l)"
+		{
+			type = text
+			y = 10
+			x = 15
+			pos = same
+			text = DJ_UNTIL
+			param = "dejure_expires(global::dj_pool.get(obj,l))"
+		}
+	}
+}
+
+povince_display = {
+	type = window
+	w = 600
+	h = 400
+	object = "prov_id_t"
+	title = {
+		type = text
+		text = L_PROVINCE
+		textformat = header_text
+		param = obj
+	}
+
+	{
+		type = large_chbutton
+		param = "get_object(prov_to_title(obj)).holder"
+	}
+	{
+		pos = same
+		type = large_tbutton
+		param = "P_GET_TITLE(obj.value)"
+	}
+
+	tabs = {
+		type = uiTabs
+		w = -5
+		h = -5
+		details = {
+			text = T_DETAILS
+			type = tab
+			{
+				type = text
+				text = CULTURE_LABEL
+				param = "get_object(obj).culture"
+			}
+			{
+				type = text
+				text = RELIGION_LABEL
+				param = "get_object(obj).religion"
+			}
+		}
+		control = {
+			text = T_CONTROL
+			type = tab
+			{
+				type = text
+				text = CB_LABEL
+			}
+			{
+				type = list
+				contentfunction = cr_display::generate
+				vector = "global::provtocontrol.to_vector(obj,vec,l)"
+			}
+			{
+				type = text
+				text = DJ_LABEL
+			}
+			{
+				type = list
+				contentfunction = dj_display::generate
+				vector = "global::provtowner.to_vector(obj,vec,l)"
+			}
+		}
+		economy = {
+			text = T_ECONOMY
+			type = tab
+			{
+				type = text
+				text = TAX_LABEL
+				param = get_object(obj).tax
+			}
+		}
+		holdings = {
+			text = T_HOLDINGS
+		}
+	}
+	
+	back = {
+		type = uiGButton
+		pos = abs
+		w = 20
+		h = 20
+		x = -40
+		tooltip = BACK
+		fill = back_tex
+	}
+}
+
+include = political_action
+
+disp_influence_by_issue = {
+	objects = {
+		"struct influence_against"
+		char_id_t
+		"class influence_display_data"
+	}
+	{
+		type = function
+		function = display_issue
+		x = 15
+	}
+	call_favor = {
+		type = uiCheckBox
+		dynamic
+		pos = absx
+		x = 200
+		text = BLANK_SPACE
+	}
+	offer_favor = {
+		type = uiCheckBox
+		dynamic
+		pos = absx
+		x = 325
+		text = BLANK_SPACE
+	}
+	friendship = {
+		type = uiCheckBox
+		dynamic
+		pos = absx
+		x = 450
+		text = BLANK_SPACE
+	}
+	blackmail = {
+		type = uiCheckBox
+		dynamic
+		pos = absx
+		x = 575
+		text = BLANK_SPACE
+	}
+}
+
+disp_influence_by_person = {
+	objects = {
+		char_id_t
+		"class influence_display_data"
+	}
+	{
+		type = text
+		text = NAME_HLINK
+		param = obj
+	}
+	{
+		type = list
+		iteration = p1.infl_against
+		function = disp_influence_by_issue::generate
+		params = {
+			obj
+			p1
+		}
+	}
+}
+
+multi_influence = {
+	type = modal_window
+	objects = {
+		"class political_action""
+		influence_display_data
+	}
+	{
+		type = text
+		text = PROPOSAL_REACT
+		textformat = header_text
+	}
+	{
+		type = function
+		function = display_political_action
+	}
+	{
+		type = conditional
+		if = "!p1.only_positive"
+		stance = {
+			type = uiDropDown
+			static
+			w = 170
+			h = 22
+		}
+	}
+	{
+		type = text
+		text = BLANK_SPACE
+	}
+	{
+		type = text
+		text = CALL_FAVOR
+		pos = absx
+		x = 200
+	}
+	{
+		type = text
+		text = OFFER_FAVOR
+		pos = absx
+		x = 325
+	}
+	{
+		type = text
+		text = APPL_FRIENDSHIP
+		pos = absx
+		x = 450
+	}
+	{
+		type = text
+		text = BLACKMAIL
+		pos = absx
+		x = 575
+	}
+
+	contents = {
+		type = uiScrollView
+		w = -1
+		h = -35
+
+		{
+			type = list
+			iteration = p1.to_influence
+			function = disp_influence_by_person::generate
+			param = p1
+		}
+	}
+
+	done_button = {
+		type = modal_button
+		text = DONE
+		x = -210
+		w = 200
+		h = 25
+	}
+}

@@ -507,7 +507,7 @@ int CALLBACK WinMain(
 	fallback1.loadFromFile("NotoSans-Bold.ttf");
 
 	sf::Font fallback2;
-	fallback2.loadFromFile("unifont-9.0.01.ttf");
+	fallback2.loadFromFile("unifont-9.0.02.ttf");
 
 	fallback1.set_fallback(fallback2);
 

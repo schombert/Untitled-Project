@@ -1219,7 +1219,7 @@ void multi_influence::init() {
 	x = basex;
 	tempy = std::max(y, maxy);
 	y = tempy;
-	{ multi_influence_window = global::uicontainer->add_element<uiDragRect>(x + 0, y + 0, 700, 500, global::solid_border);
+	{ multi_influence_window = global::uicontainer->add_element<uiDragRect>(x + 0, y + 0, global::uicontainer->pos.width - (x + 0) + 0, global::uicontainer->pos.height - (y + 0) + 0, global::solid_border);
 		{ int y = 5; int x = 5; int tempy = y; int maxy = y; int basex = x;
 			x = basex;
 			tempy = std::max(y, maxy);
@@ -1368,7 +1368,7 @@ void multi_influence::open(IN(political_action) obj, IN(influence_display_data) 
 		tempy = std::max(y, maxy);
 		y = tempy;
 		{
-			done_button = multi_influence_window->add_element<uiButton>(multi_influence_window->pos.width + -210, y + 5, 200, 25, get_simple_string(TX_DONE), global::solid_border, global::standard_text, done_button_action(obj, p1, signal, l));
+			done_button = multi_influence_window->add_element<uiButton>(multi_influence_window->pos.width + -210, y + 0, 200, 25, get_simple_string(TX_DONE), global::solid_border, global::standard_text, done_button_action(obj, p1, signal, l));
 			x = done_button->pos.width + done_button->pos.left + 5;
 			y = done_button->pos.height + done_button->pos.top + 5;
 		}
@@ -1476,7 +1476,7 @@ void multi_influence::update(IN(political_action) obj, IN(influence_display_data
 		tempy = std::max(y, maxy);
 		y = tempy;
 		done_button->pos.left = multi_influence_window->pos.width + -210;
-		done_button->pos.top = y + 5;
+		done_button->pos.top = y + 0;
 		x = done_button->pos.width + done_button->pos.left + 5;
 		y = done_button->pos.height + done_button->pos.top + 5;
 		done_button->subelements.clear();

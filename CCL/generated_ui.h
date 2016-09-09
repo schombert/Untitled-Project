@@ -8,8 +8,9 @@ struct emission_selection;
 struct smission_selection;
 class spy_mission;
 struct influence_against;
-class political_action;
 class influence_display_data;
+class influence_display_data;
+class political_action;
 
 void init_all_generated_ui();
 
