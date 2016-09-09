@@ -22,12 +22,12 @@ bld/
 [Bb]in/
 [Oo]bj/
 
-common/
-gfx/
-history/
-localisation/
-map/
-map2/
+**/common/
+**/gfx/
+**/history/
+**/localisation/
+**/map/
+**/map2/
 
 # Visual Studio 2015 cache/options directory
 .vs/
