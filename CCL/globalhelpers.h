@@ -2350,7 +2350,7 @@ public:
 	void execute_entries() noexcept {
 		generic_node<MEMBER_TYPE>* __restrict pNode = (generic_node<MEMBER_TYPE>*)InterlockedPopEntrySList(&stack_head);
 		while (pNode) {
-			pNode->obj.execute();
+			pNode->execute();
 			((MEMBER_TYPE*)(&pNode->obj))->~MEMBER_TYPE();
 			concurrent_aligned_free(pNode);
 			pNode = (generic_node<MEMBER_TYPE>*)InterlockedPopEntrySList(&stack_head);
