@@ -1,0 +1,29 @@
+Microsoft (R) Macro Assembler (x64) Version 14.00.24210.0   08/05/16 16:55:31
+Source.asm						     Page 1 - 1
+
+
+ 00000000			_TEXT segment
+
+ 00000000			asm_div PROC
+ 00000000  48/ 8B C1			mov rax, rcx
+ 00000003  49/ F7 F8			idiv r8
+ 00000006  C3				ret
+ 00000007			asm_div ENDP
+
+ 00000007			_TEXT ends
+
+				END
+Microsoft (R) Macro Assembler (x64) Version 14.00.24210.0   08/05/16 16:55:31
+Source.asm						     Symbols 2 - 1
+
+
+
+
+Procedures, parameters, and locals:
+
+                N a m e                 Type     Value    Attr
+
+asm_div  . . . . . . . . . . . .	P 	 00000000 _TEXT	Length= 00000007 Public
+
+	   0 Warnings
+	   0 Errors
