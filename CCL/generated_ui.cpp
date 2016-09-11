@@ -1219,7 +1219,7 @@ void multi_influence::init() {
 	x = basex;
 	tempy = std::max(y, maxy);
 	y = tempy;
-	{ multi_influence_window = global::uicontainer->add_element<uiDragRect>(x + 0, y + 0, global::uicontainer->pos.width - (x + 0) + 0, global::uicontainer->pos.height - (y + 0) + 0, global::solid_border);
+	{ multi_influence_window = global::uicontainer->add_element<uiDragRect>(x + 0, y + 0, 700, 500, global::solid_border);
 		{ int y = 5; int x = 5; int tempy = y; int maxy = y; int basex = x;
 			x = basex;
 			tempy = std::max(y, maxy);

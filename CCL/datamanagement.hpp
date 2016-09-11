@@ -306,6 +306,8 @@ namespace global {
 	void enum_vassals(admin_id_t adm, IN(g_lock) l, IN(T) func) noexcept {
 		leigetoadmin.for_each(adm, l, func);
 	}
+	void get_vassals(INOUT(std::vector<char_id_t>) v, admin_id_t adm, IN(w_lock) l) noexcept;
+	void get_vassals(INOUT(cvector<char_id_t>) v, admin_id_t adm, IN(g_lock) l) noexcept;
 	template<typename T>
 	void enum_council(admin_id_t id, IN(g_lock) l, IN(T) f) noexcept {
 		const auto at = get_object(id, l).associated_title;

@@ -425,6 +425,23 @@ bool global::are_close_family(char_id_t a, char_id_t b) {
 	return (p.mother == c.mother && valid_ids(p.mother)) || (p.father == c.father && valid_ids(p.father)) || p.mother == b || p.father == b || c.father == a || c.mother == a || p.spouse == b;
 }
 
+template<typename T, typename L>
+void _get_vassals(INOUT(std::vector<char_id_t, T>) v, admin_id_t adm, IN(L) l) noexcept {
+	leigetoadmin.for_each(adm, l, [&v, &l](admin_id_t vas) {
+		auto hos = head_of_state(vas, l);
+		if (std::find(v.begin(), v.end(), hos) == v.end())
+			v.emplace_back(hos);
+	});
+}
+
+void get_vassals(INOUT(std::vector<char_id_t>) v, admin_id_t adm, IN(w_lock) l) noexcept {
+	_get_vassals(v, adm, l);
+}
+
+void get_vassals(INOUT(cvector<char_id_t>) v, admin_id_t adm, IN(g_lock) l) noexcept {
+	_get_vassals(v, adm, l);
+}
+
 template<typename T>
 void _get_living_family(char_id_t id, INOUT(std::vector<char_id_t, T>) vec) {
 	vec.reserve(16);

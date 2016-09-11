@@ -75,7 +75,7 @@ void list_direct_controlled_admin(char_id_t id, INOUT(cvector<admin_id_t>) s, IN
 	_list_direct_controlled_admin(id, s, l);
 }
 
-char_id_t get_sub_title_holder(title_id_t parent, sub_title_type st, IN(r_lock) l) noexcept {
+char_id_t get_sub_title_holder(title_id_t parent, sub_title_type st, IN(g_lock) l) noexcept {
 	char_id_t holder;
 	sub_titles.for_each_breakable(parent, l, [st, &holder](IN(sub_title) t) {
 		if (t.type == st) {
@@ -87,6 +87,22 @@ char_id_t get_sub_title_holder(title_id_t parent, sub_title_type st, IN(r_lock) 
 	return holder;
 }
 
+template<typename T, typename L>
+void _get_sub_title_holders(INOUT(std::vector<char_id_t, T>) v, title_id_t parent, sub_title_type st, IN(L) l) noexcept {
+	sub_titles.for_each(parent, l, [st, &v](IN(sub_title) t) {
+		if (t.type == st) {
+			v.emplace_back(t.holder);
+		}
+	});
+}
+
+void get_sub_title_holders(INOUT(std::vector<char_id_t>) v, title_id_t parent, sub_title_type st, IN(w_lock) l) noexcept {
+	_get_sub_title_holders(v, parent, st, l);
+}
+
+void get_sub_title_holders(INOUT(cvector<char_id_t>) v, title_id_t parent, sub_title_type st, IN(g_lock) l) noexcept {
+	_get_sub_title_holders(v, parent, st, l);
+}
 
 v_pool_t<administration, admin_id> admin_pool;
 
@@ -267,7 +283,7 @@ char_id_t best_candidate(INOUT(std::vector<char_id_t>) candidates, unsigned char
 	return char_id_t();
 }
 
-char_id_t get_prim_heir(IN(administration) adm, char_id_t current_holder, IN(r_lock) l) noexcept {
+char_id_t get_prim_heir(IN(administration) adm, char_id_t current_holder, IN(g_lock) l) noexcept {
 	char_id_t dh = get_sub_title_holder(adm.associated_title, sub_title::DESIGNATED_HEIR, l);
 	if (valid_ids(dh))
 		return dh;

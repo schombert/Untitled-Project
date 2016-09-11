@@ -2,6 +2,7 @@
 #include "globalhelpers.h"
 #include "uielements.hpp"
 #include "living_data.h"
+#include "laws.h"
 
 struct influence_against {
 	union iad {
@@ -75,6 +76,35 @@ public:
 	// virtual char_id_t get_executor(IN(g_lock) l) const = 0;
 	// virtual admin_id_t get_admin(IN(g_lock) l) const = 0;
 	virtual ~political_action() {};
+};
+
+class war_action {
+public:
+	const admin_id_t associated_admin;
+	war_action(admin_id_t a) : associated_admin(a) {};
+	
+	bool needs_vote(IN(g_lock) l) const {
+		IN(auto) adm = get_object(associated_admin, l);
+		return (adm.war & sub_title::VOTING_TYPE) != 0;
+	}
+	template<typename T, typename L>
+	void get_voters(INOUT(std::vector<char_id_t, T>) voters, IN(L) l) {
+		IN(auto) adm = get_object(associated_admin, l);
+		if (adm.war == administration::BY_VOTE) {
+			global::get_vassals(voters, associated_admin, l);
+		} else {
+			get_sub_title_holders(voters, adm.associated_title, adm.war, l);
+		}
+	}
+	char_id_t get_executor(IN(g_lock) l) const {
+		IN(auto) adm = get_object(associated_admin, l);
+		if (adm.war == administration::EXECUTIVE)
+			return adm.executive;
+		return get_sub_title_holder(adm.associated_title, adm.war, l);
+	}
+	admin_id_t get_admin(IN(g_lock) l) const {
+		return associated_admin;
+	}
 };
 
 class influence_display_data {

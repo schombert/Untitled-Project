@@ -180,11 +180,13 @@ void list_direct_controlled_admin(char_id_t id, INOUT(flat_set<admin_id_t>) s, I
 void list_direct_controlled_admin(char_id_t id, INOUT(std::vector<admin_id_t>) s, IN(w_lock) l) noexcept;
 void list_direct_controlled_admin(char_id_t id, INOUT(cflat_set<admin_id_t>) s, IN(g_lock) l) noexcept;
 void list_direct_controlled_admin(char_id_t id, INOUT(cvector<admin_id_t>) s, IN(g_lock) l) noexcept;
-char_id_t get_prim_heir(IN(administration) adm, char_id_t current_holder, IN(r_lock) l) noexcept;
+char_id_t get_prim_heir(IN(administration) adm, char_id_t current_holder, IN(g_lock) l) noexcept;
 char_id_t head_of_state(IN(administration) adm) noexcept;
 char_id_t head_of_state(admin_id_t a, IN(g_lock) l) noexcept;
 bool can_raise_troops(char_id_t c, IN(administration) adm) noexcept;
-char_id_t get_sub_title_holder(title_id_t parent, sub_title_type st, IN(r_lock) l) noexcept;
+char_id_t get_sub_title_holder(title_id_t parent, sub_title_type st, IN(g_lock) l) noexcept;
+void get_sub_title_holders(INOUT(std::vector<char_id_t>) v, title_id_t parent, sub_title_type st, IN(w_lock) l) noexcept;
+void get_sub_title_holders(INOUT(cvector<char_id_t>) v, title_id_t parent, sub_title_type st, IN(g_lock) l) noexcept;
 char_id_t get_admin_holder(admin_id_t id, IN(g_lock) l) noexcept;
 admin_id_t get_prime_leige(char_id_t id, IN(g_lock) l) noexcept;
 admin_id_t get_prime_admin(char_id_t id, IN(g_lock) l) noexcept;

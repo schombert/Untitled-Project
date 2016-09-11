@@ -735,6 +735,10 @@ multi_influence = {
 		"class political_action""
 		influence_display_data
 	}
+
+	w = 700
+	h = 500
+
 	{
 		type = text
 		text = PROPOSAL_REACT
