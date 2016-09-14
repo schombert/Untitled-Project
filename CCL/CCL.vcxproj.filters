@@ -144,6 +144,9 @@
     <ClCompile Include="political_action.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="political_action_instances.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sqlite3.h">
@@ -276,6 +279,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="political_action_template.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="political_action_instances.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

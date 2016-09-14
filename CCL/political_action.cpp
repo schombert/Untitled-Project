@@ -266,7 +266,7 @@ bool generate_influence(INOUT(influence_against) out, char_id_t to_influence, ch
 	return false;
 }
 
-bool get_player_proceed_with_proposal(IN_P(political_action) act, bool action_needs_vote, double player_eval, char_id_t proposal_from, IN(std::vector<influence_against>) result_set, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(w_lock) l) {
+bool get_player_proceed_with_proposal(const IN_P(political_action) act, bool action_needs_vote, double player_eval, char_id_t proposal_from, IN(std::vector<influence_against>) result_set, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(w_lock) l) {
 	l.unlock();
 	const bool do_proposal = make_yes_no_popup(global::uicontainer, get_simple_string(TX_PROPOSAL), [action_needs_vote, proposal_from, &positive_influence, &result_set, act](IN(std::shared_ptr<uiScrollView>) sv) {
 		int y = 1;
@@ -308,7 +308,7 @@ bool get_player_proceed_with_proposal(IN_P(political_action) act, bool action_ne
 	return do_proposal;
 }
 
-bool get_player_vote(IN_P(political_action) act, double player_eval, IN(std::vector<influence_against>) result_set, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, INOUT(w_lock) l) {
+bool get_player_vote(const IN_P(political_action) act, double player_eval, IN(std::vector<influence_against>) result_set, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, INOUT(w_lock) l) {
 	l.unlock();
 	const bool vote_for = make_yes_no_popup(global::uicontainer, get_simple_string(TX_VOTE), [act, &positive_influence, &negative_influence, &result_set](IN(std::shared_ptr<uiScrollView>) sv) {
 		int y = 1;
@@ -348,7 +348,7 @@ bool get_player_vote(IN_P(political_action) act, double player_eval, IN(std::vec
 	return vote_for;
 }
 
-bool get_player_take_action(IN_P(political_action) act, double player_eval, IN(std::vector<std::pair<char_id_t, int>>) council_members, IN(std::vector<influence_against>) result_set, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, INOUT(w_lock) l) {
+bool get_player_take_action(const IN_P(political_action) act, double player_eval, IN(std::vector<std::pair<char_id_t, int>>) council_members, IN(std::vector<influence_against>) result_set, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, INOUT(w_lock) l) {
 	l.unlock();
 	const bool do_action = make_yes_no_popup(global::uicontainer, get_simple_string(TX_PROPOSAL), [&council_members, act, &positive_influence, &negative_influence, &result_set](IN(std::shared_ptr<uiScrollView>) sv) {
 		int y = 1;
@@ -426,7 +426,7 @@ int inf_to_add_stance;
 const political_action* global_action_for = nullptr;
 influence_display_data inf_disp_dat;
 
-int get_influence_results_from_player(IN_P(political_action) action_for, IN(std::vector<influence_against>) influences_involved, IN(std::vector<char_id_t>) influence_targets, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, bool is_proposal, INOUT(w_lock) l) {
+int get_influence_results_from_player(const IN_P(political_action) action_for, IN(std::vector<influence_against>) influences_involved, IN(std::vector<char_id_t>) influence_targets, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, bool is_proposal, INOUT(w_lock) l) {
 	inf_to_add_stance = is_proposal ? 1 : 0;
 	inf_to_add_set.clear();
 	global_action_for = action_for;

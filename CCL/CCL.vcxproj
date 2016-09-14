@@ -226,6 +226,7 @@
     <ClCompile Include="peacewindow.cpp" />
     <ClCompile Include="PlansWindow.cpp" />
     <ClCompile Include="political_action.cpp" />
+    <ClCompile Include="political_action_instances.cpp" />
     <ClCompile Include="ProvPane.cpp" />
     <ClCompile Include="prov_control.cpp" />
     <ClCompile Include="random_activity.cpp" />
@@ -272,6 +273,7 @@
     <ClInclude Include="peacewindow.h" />
     <ClInclude Include="PlansWindow.h" />
     <ClInclude Include="political_action.h" />
+    <ClInclude Include="political_action_instances.h" />
     <ClInclude Include="political_action_template.h" />
     <ClInclude Include="ProvPane.h" />
     <ClInclude Include="prov_control.h" />

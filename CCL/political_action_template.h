@@ -5,6 +5,8 @@
 #include "generated_ui.h"
 #include "i18n.h"
 #include "uielements.hpp"
+#include "datamanagement.hpp"
+#include "relations.h"
 
 template<typename T>
 class political_action_t : public political_action {
@@ -17,6 +19,8 @@ public:
 
 	double evaluate_potential_political_action(char_id_t by, IN(g_lock) l) const;
 };
+
+#define POL_ACTION_CLASS(name, type) class name : public type, political_action_t<name>
 
 template<typename T>
 void political_action_t<T>::propose(char_id_t proposal_from, char_id_t proposal_to, INOUT(w_lock) l) const {
@@ -112,7 +116,7 @@ void political_action_t<T>::vote_on(INOUT(flat_multimap<char_id_t, influence_aga
 	((T*)this)->get_voters(voters, l);
 
 	std::vector<char_id_t> council_members;
-	global::enum_council(action.get_admin(l), l, [&voters, &council_members](char_id_t id) {
+	global::enum_council(((T*)this)->get_admin(l), l, [&voters, &council_members](char_id_t id) {
 		const auto iend = voters.end();
 		const auto mend = council_members.end();
 		if (std::find(voters.begin(), iend, id) == iend &&
@@ -147,7 +151,7 @@ void political_action_t<T>::vote_on(INOUT(flat_multimap<char_id_t, influence_aga
 			const double positive_bias = with_udata(global::playerid, l, 0.0, [th = ((T*)this), &l, &positive_influence, &negative_influence, &result_set, favor_sum](IN(udata) d) {
 				return value_of_honor(sum_total_of_favors(favor_sum, d.p_honorable), d) + th->evaluate_action(global::playerid, l) + total_weight_of_influence(global::playerid, d, positive_influence, l) - total_weight_of_influence(global::playerid, d, result_set, l) - total_weight_of_influence(global::playerid, d, negative_influence, l);
 			});;
-			vote_for = bool get_player_vote(this, positive_bias, result_set, positive_influence, negative_influence, l);
+			vote_for = get_player_vote(this, positive_bias, result_set, positive_influence, negative_influence, l);
 		} else {
 			vote_for = with_udata(voter, l, false, [th = ((T*)this), voter, &l, &positive_influence, &negative_influence, &result_set, favor_sum](IN(udata) d) {
 				return value_of_honor(sum_total_of_favors(favor_sum, d.p_honorable), d) + th->evaluate_action(voter, l) + total_weight_of_influence(voter, d, positive_influence, l) - total_weight_of_influence(voter, d, result_set, l) - total_weight_of_influence(voter, d, negative_influence, l) > 0.0;
@@ -199,7 +203,7 @@ void political_action_t<T>::take_action(INOUT(flat_multimap<char_id_t, influence
 
 	for (INOUT(auto) interested : council_members) {
 		if ((interested.first != proposal_from) | (interested.first == global::playerid)) {
-			interested.second = get_influence_single(interested.first, executor, iv, positive_influence, negative_influence, false, l);
+			interested.second = get_influence_single(interested.first, executor, iv, positive_influence, negative_influence, l);
 		}
 	}
 
@@ -237,7 +241,7 @@ void political_action_t<T>::take_action(INOUT(flat_multimap<char_id_t, influence
 				adjust_relation(cm.first, executor, -1, l);
 		}
 		erase_saved_influence_set(executor, iv, l);
-		action.do_action(l);
+		((T*)this)->do_action(l);
 	} else {
 		for (IN(auto) pr : positive_influence) {
 			do_influence_ignored(executor, pr.second, favor_sum > 0, l);
@@ -271,17 +275,17 @@ int political_action_t<T>::get_influence_single(char_id_t influencer, char_id_t 
 	if (influencer == global::playerid) {
 		std::vector<char_id_t> influence_targets(1);
 		influence_targets.push_back(influence_target);
-		return get_influence_results_from_player((T*)this, influences_involved, influence_targets, positive_influence, negative_influence, is_proposal, l);
+		return get_influence_results_from_player(this, influences_involved, influence_targets, positive_influence, negative_influence, false, l);
 	} else {
 		const double prob = evaluation_to_influence_probability(eval);
 
 		if (random_store::get_fast_double() < prob) {
 			influence_against out;
-			if (generate_influence(out, it, influencer, influences_involved, l)) {
+			if (generate_influence(out, influence_target, influencer, influences_involved, l)) {
 				if (eval > 0) {
-					positive_influence.emplace(it, out);
+					positive_influence.emplace(influence_target, out);
 				} else {
-					negative_influence.emplace(it, out);
+					negative_influence.emplace(influence_target, out);
 				}
 			}
 		}
@@ -295,7 +299,7 @@ int political_action_t<T>::get_influence(char_id_t influencer, char_id_t exclude
 	const double eval = ((T*)this)->evaluate_action(influencer, l);
 
 	if (influencer == global::playerid) {
-		return get_influence_results_from_player((T*)this, influences_involved, influence_targets, positive_influence, negative_influence, is_proposal, l);
+		return get_influence_results_from_player(this, influences_involved, influence_targets, positive_influence, negative_influence, is_proposal, l);
 	} else {
 		const double prob = evaluation_to_influence_probability(eval);
 
