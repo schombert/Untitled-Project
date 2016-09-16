@@ -13,8 +13,8 @@ public:
 
 
 	virtual void display_description(IN(std::shared_ptr<uiElement>) parent, INOUT(int) x, INOUT(int) y, IN(g_lock) l) const override;
-	virtual bool is_possible(IN(g_lock) l) const override;
 
+	bool is_possible(IN(g_lock) l) const;
 	void do_action(INOUT(w_lock) l) const;
 	double evaluate_action(char_id_t by, IN(g_lock) l) const;
 

@@ -694,8 +694,7 @@ int CALLBACK WinMain(
 				execute_schedule();
 
 				proposals.execute_entries();
-				political_action_voting.execute_entries();
-				political_action_execution.execute_entries();
+				political_actions.execute_entries();
 
 				global::setFlag(FLG_DATE_UPDATE);
 				global::end_of_day.set();

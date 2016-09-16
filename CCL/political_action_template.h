@@ -12,8 +12,10 @@ template<typename T>
 class political_action_t : public political_action {
 public:
 	virtual void propose(char_id_t proposal_from, char_id_t proposal_to, INOUT(w_lock) l) const override final;
-	virtual void vote_on(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, char_id_t proposal_to, INOUT(w_lock) l) const override final;
-	virtual void take_action(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, INOUT(w_lock) l) const override final;
+	virtual void take_action(INOUT(w_lock) l) const override final;
+	
+	void vote_on(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, char_id_t proposal_to, INOUT(w_lock) l) const;
+	void take_action_inner(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, INOUT(w_lock) l) const;
 	int get_influence(char_id_t influencer, char_id_t exclude, IN(std::vector<char_id_t>) influence_targets, IN(std::vector<influence_against>) influences_involved, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, bool is_proposal, INOUT(w_lock) l) const;
 	int get_influence_single(char_id_t influencer, char_id_t influence_target, IN(std::vector<influence_against>) influences_involved, INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, INOUT(flat_multimap<char_id_t, influence_against>) negative_influence, INOUT(w_lock) l) const;
 
@@ -23,7 +25,26 @@ public:
 #define POL_ACTION_CLASS(name, type) class name : public type, political_action_t<name>
 
 template<typename T>
+void political_action_t<T>::take_action(INOUT(w_lock) l) const {
+	if (!((T*)this)->is_possible(l)) {
+		return;
+	}
+
+	flat_multimap<char_id_t, influence_against> dummy_positive_influence;
+
+	if (!((T*)this)->needs_vote(l)) {
+		take_action_inner(dummy_positive_influence, char_id_t(), l);
+	} else {
+		vote_on(dummy_positive_influence, char_id_t(), char_id_t(), l);
+	}
+}
+
+template<typename T>
 void political_action_t<T>::propose(char_id_t proposal_from, char_id_t proposal_to, INOUT(w_lock) l) const {
+	if (!((T*)this)->is_possible(l)) {
+		return;
+	}
+
 	flat_multimap<char_id_t, influence_against> positive_influence;
 
 	std::vector<influence_against> iv;
@@ -78,7 +99,7 @@ void political_action_t<T>::propose(char_id_t proposal_from, char_id_t proposal_
 				});
 			}
 
-			take_action(positive_influence, proposal_from, l);
+			take_action_inner(positive_influence, proposal_from, l);
 		} else {
 			if (proposal_from == global::playerid) {
 				message_popup(global::uicontainer, get_simple_string(TX_PROPOSAL), [proposal_to, th = ((T*)this), &l](IN(std::shared_ptr<uiScrollView>) sv) {
@@ -185,7 +206,7 @@ void political_action_t<T>::vote_on(INOUT(flat_multimap<char_id_t, influence_aga
 }
 
 template<typename T>
-void political_action_t<T>::take_action(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, INOUT(w_lock) l) const {
+void political_action_t<T>::take_action_inner(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, INOUT(w_lock) l) const {
 	const auto executor = ((T*)this)->get_executor(l);
 
 	std::vector<std::pair<char_id_t, int>> council_members;

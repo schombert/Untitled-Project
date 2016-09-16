@@ -66,10 +66,9 @@ inline bool has_negative_counterpart(unsigned char influence_type) noexcept {
 class political_action {
 public:
 	virtual void propose(char_id_t proposal_from, char_id_t proposal_to, INOUT(w_lock) l) const { abort(); };
-	virtual void vote_on(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, char_id_t proposal_to, INOUT(w_lock) l) const { abort(); };
-	virtual void take_action(INOUT(flat_multimap<char_id_t, influence_against>) positive_influence, char_id_t proposal_from, INOUT(w_lock) l) const { abort(); };
+	virtual void take_action(INOUT(w_lock) l) const { abort(); };
 	virtual void display_description(IN(std::shared_ptr<uiElement>) parent, INOUT(int) x, INOUT(int) y, IN(g_lock) l) const { abort(); };
-	virtual bool is_possible(IN(g_lock) l) const { abort(); };
+	// virtual bool is_possible(IN(g_lock) l) const { abort(); };
 	// virtual void do_action(IN(w_lock) l) const = 0;
 	// virtual double evaluate_action(char_id_t by, IN(g_lock) l) const = 0;
 	// virtual void influences_involved(INOUT(std::vector<influence_against>) v, IN(w_lock) l) const = 0;
@@ -132,40 +131,22 @@ public:
 
 struct apply_political_action_proposal {
 	static void apply(IN(std::pair<char_id_t, char_id_t>) ex, INOUT(political_action) act) {
-		if (act.is_possible(fake_lock())) {
-			w_lock l;
-			act.propose(ex.first, ex.second, l);
-		}
+		w_lock l;
+		act.propose(ex.first, ex.second, l);
 	}
 };
 
-struct apply_political_action_vote {
+struct apply_political_action {
 	static void apply(INOUT(political_action) act) {
-		if (act.is_possible(fake_lock())) {
-			w_lock l;
-			flat_multimap<char_id_t, influence_against> dummy_positive_influence;
-			act.vote_on(dummy_positive_influence, char_id_t(), char_id_t(), l);
-		}
-	}
-};
-
-struct apply_political_action_execution {
-	static void apply(INOUT(political_action) act) {
-		if (act.is_possible(fake_lock())) {
-			w_lock l;
-			flat_multimap<char_id_t, influence_against> dummy_positive_influence;
-			act.take_action(dummy_positive_influence, char_id_t(), l);
-		}
+		w_lock l;
+		act.take_action(l);
 	}
 };
 
 extern actionable_list_class_t<political_action, std::pair<char_id_t, char_id_t>, apply_political_action_proposal> proposals;
-extern actionable_list_class<political_action, apply_political_action_vote> political_action_voting;
-extern actionable_list_class<political_action, apply_political_action_execution> political_action_execution;
-
+extern actionable_list_class<political_action, apply_political_action> political_actions;
 
 extern update_record modal_influence_window;
-
 
 void display_political_action(IN(std::shared_ptr<uiElement>) parent, INOUT(int) x, INOUT(int) y, IN(political_action) act, IN(g_lock) l);
 void save_influence(char_id_t inf_for, IN(influence_against) inf, IN(w_lock) l);

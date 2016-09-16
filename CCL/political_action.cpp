@@ -10,8 +10,7 @@
 
 
 actionable_list_class_t<political_action, std::pair<char_id_t, char_id_t>, apply_political_action_proposal> proposals;
-actionable_list_class<political_action, apply_political_action_vote> political_action_voting;
-actionable_list_class<political_action, apply_political_action_execution> political_action_execution;
+actionable_list_class<political_action, apply_political_action> political_actions;
 
 multiindex<char_id_t, influence_against> saved_influence_set;
 
