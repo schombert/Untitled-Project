@@ -613,8 +613,7 @@ void make_popup_rect(const std::shared_ptr<uiElement> &parent,  F1&& title_funct
 
 void makePopup(const std::shared_ptr<uiElement> &parent, sf::Font* font, const std::wstring &title, size_t indx, size_t* params, size_t len) {
 	message_popup(parent, title, [params, len, indx](IN(std::shared_ptr<uiScrollView>) sv) {
-		const auto tb = create_tex_block(indx, params, len, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-		sv->subelements.push_back(tb);
+		create_tex_block(indx, params, len, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 	});
 }
 
@@ -652,13 +651,13 @@ void message_popup(const std::shared_ptr<uiElement> &parent, const std::wstring 
 
 void i18n_message_popup(size_t title_text, size_t body_text, const size_t* params, size_t numparams) {
 	message_popup(global::uicontainer, get_simple_string(title_text), [body_text, params, numparams](IN(std::shared_ptr<uiScrollView>) sv) {
-		sv->subelements.push_back(create_tex_block(body_text, params, numparams, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text));
+		create_tex_block(body_text, params, numparams, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text);
 	});
 }
 
 bool i18n_yes_no_popup(size_t title_text, size_t body_text, int stress_bias, const size_t* params, size_t numparams, const IN_P(size_t) labels) {
 	return make_yes_no_popup_i(global::uicontainer, get_simple_string(title_text), [body_text, params, numparams](IN(std::shared_ptr<uiScrollView>) sv) {
-		sv->subelements.push_back(create_tex_block(body_text, params, numparams, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text));
+		create_tex_block(body_text, params, numparams, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text);
 	}, stress_bias < 0 ? static_cast<size_t>(-stress_bias) : 0, stress_bias > 0 ? static_cast<size_t>(stress_bias) : 0, labels, std::integral_constant<size_t,1>());
 }
 
@@ -755,7 +754,7 @@ void i18n_modeless_yes_no_popup(size_t title_text, size_t body_text, int stress_
 	make_modeless_yes_no_popup_internal(global::uicontainer, standard_title(get_simple_string(title_text)), [body_text,params, numparams](const std::shared_ptr<uiDragRect> &dr) {
 		auto sv = std::make_shared<uiScrollView>(MB_BORDER, MB_BORDER + MB_TITLE, MB_WIDTH - MB_BORDER * 2 + 10, MB_HEIGHT - MB_BORDER * 2 - MB_TITLE - MB_BUTTON, dr);
 		dr->subelements.push_back(sv);
-		sv->subelements.push_back(create_tex_block(body_text, params, numparams, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text));
+		create_tex_block(body_text, params, numparams, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text);
 		sv->calcTotalHeight();
 		resize_popup(dr, sv);
 	}, stress_bias < 0 ? static_cast<size_t>(-stress_bias) : 0, stress_bias > 0 ? static_cast<size_t>(stress_bias) : 0, results, labels);

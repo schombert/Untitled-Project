@@ -386,9 +386,7 @@ bool attack_reaction(char_id_t attacker, char_id_t target, wargoal goal, INOUT(w
 
 	const auto description = [target](int x, int y, int width, IN(std::shared_ptr<uiElement>) parent) {
 		size_t param = target.value;
-		const auto tx = create_tex_block(TX_NOCB_D, &param, 1, parent, x, y, width, global::empty, global::standard_text);
-		parent->subelements.push_back(tx);
-		return tx->pos.height;
+		return create_tex_block(TX_NOCB_D, &param, 1, parent, x, y, width, global::empty, global::standard_text);
 	};
 	const double war_estimate = war_estimation(attacker, target, l);
 	
@@ -484,9 +482,7 @@ bool dishonor_def_pact_reaction(char_id_t actor, char_id_t other, char_id_t atta
 
 	const auto description = [actor, other, attacker](int x, int y, int width, IN(std::shared_ptr<uiElement>) parent) {
 		size_t params[] = {actor.value, other.value, attacker.value};
-		const auto tx = create_tex_block(TX_DPACT_D, params, 3, parent, x, y, width, global::empty, global::standard_text);
-		parent->subelements.push_back(tx);
-		return tx->pos.height;
+		return create_tex_block(TX_DPACT_D, params, 3, parent, x, y, width, global::empty, global::standard_text);
 	};
 	opinion_of_action_v(actor, councilvec,
 		break_pact_against_tf(actor, other, attacker, pid, l),

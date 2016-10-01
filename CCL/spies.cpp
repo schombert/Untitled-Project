@@ -20,7 +20,7 @@ void execute_plot_event(admin_id_t from, INOUT(spy_mission) sm, IN(plot_event) p
 		l.unlock();
 		if (make_yes_no_popup(global::uicontainer, get_simple_string(TX_I_OPPORTUNITY), [&sm, &p, &adm](IN(std::shared_ptr<uiScrollView>) sv, IN(std::shared_ptr<ui_stress_button>) y, IN(std::shared_ptr<ui_stress_button>) n) noexcept {
 			size_t params[] = {sm.spy.value, to_param(p.cost)};
-			sv->subelements.push_back(create_tex_block(p.text, params, 2, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text));
+			create_tex_block(p.text, params, 2, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text);
 	
 			with_udata(head_of_state(adm), r_lock(), [&p, &y](IN(udata) ud) noexcept {
 				if (ud.wealth < p.cost)

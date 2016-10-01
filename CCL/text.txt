@@ -225,10 +225,14 @@ PEACE_OFFER_BODY:[H,C,0,[N,0]] offers you peace on the following terms:
 GOAL_DEF:War reparations ([#0]) to [H,C,1,[N,1]]
 GOAL_CONQ:Conquest by [H,C,0,[N,0]]
 GOAL_DEJ:Return of the [H,T,0,[T,0]]'s de jure territory to [H,C,1,[N,1]]
+ADJ_GOAL_DEF:NA
+ADJ_GOAL_CONQ:war of conquest
+ADJ_GOAL_DEJ:war to reclaim the [T,2]'s de jure territory
+WAR_DEC:Declare a [x,1] on [N,0]
 L_GOAL_DEF:War reparations
 L_GOAL_CONQ:Conquest
-L_GOAL_DEJ:Return of [H,T,0,[T,0]]'s de jure territory
-GOAL_NAMES:[|Reparations|Conquest|Dejure claims]
+L_GOAL_DEJ:Return of the [H,T,0,[T,0]]'s de jure territory
+GOAL_NAMES:[|reparations|conquest|de jure claims]
 PEACE_ACCOUNCEMENT:Hostilities ended
 P_OFFER_ACCEPTED:[H,C,1,[N,1]] has accepted peace from [H,C,0,[N,0]] on the following terms:
 P_ENFORCED:[H,C,0,[N,0]] has enforced the following peace on [H,C,1,[N,1]]:

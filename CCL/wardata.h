@@ -193,6 +193,9 @@ bool wargoal_has_prov_list(IN(wargoal) goal);
 double display_goal(IN(std::shared_ptr<uiElement>) parent, int x, int &y, IN(wargoal) goal, char_id_t actor, double totalval, IN(g_lock) l, bool enforcing); //returns value used by goal
 void display_goal_name(IN(std::shared_ptr<uiElement>) parent, int x, int &y, IN(wargoal) goal, IN(g_lock) l);
 
+constexpr size_t max_extra_goal_params = 1;
+void goal_to_war_label(IN(wargoal) goal, IN_P(size_t) params);
+
 inline double troopCost(size_t l, size_t s) noexcept;
 float troop_cost_est(float points) noexcept;
 void balance_war(INOUT(war_pair) wp, bool attacker, IN(w_lock) l);

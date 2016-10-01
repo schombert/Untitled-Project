@@ -23,11 +23,9 @@ bool _will_accept_peace(char_id_t person, IN(peace_deal) deal, INOUT(LOCK) l) no
 		l.unlock();
 		const auto result = make_yes_no_popup(global::uicontainer, get_simple_string(TX_L_PEACE_OFFER), [&deal](const std::shared_ptr<uiScrollView>& sv) {
 			size_t param = head_of_state(admin_id_t(deal.offer_from), r_lock()).value;
-			const auto blk = create_tex_block(TX_PEACE_OFFER_BODY, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-			sv->subelements.push_back(blk);
 			{
 				r_lock l;
-				int y = blk->pos.height + 10;
+				int y = create_tex_block(TX_PEACE_OFFER_BODY, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 10;
 				deal.to_ui(sv, 0, y, l);
 			}
 		}, 0, 0, accept_decline_array);
@@ -67,7 +65,7 @@ bool _will_honor_def_pact(char_id_t id, char_id_t behalf, char_id_t against, IN(
 		l.unlock();
 		const bool result = make_yes_no_popup(global::uicontainer, get_simple_string(TX_DEF_CALL), [behalf, against](const std::shared_ptr<uiScrollView>& sv) noexcept {
 			size_t params[] = {behalf.value, against.value};
-			sv->subelements.push_back(create_tex_block(TX_DEF_CALL_BODY, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text));
+			create_tex_block(TX_DEF_CALL_BODY, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 		}, 0, with_udata(char_id_t(global::playerid), fake_lock(), 0, [](IN(udata) d) noexcept { return is_honest(d) ? 5 : 0; }), accept_decline_array);
 		l.lock();
 		return result;
@@ -89,10 +87,10 @@ bool willraisetroops(char_id_t person, char_id_t behalfof, char_id_t target) noe
 		const bool rvalue = make_yes_no_popup(global::uicontainer, get_simple_string(TX_L_CTOARMS), [ behalfof, target](const std::shared_ptr<uiScrollView>& sv) {
 			if (valid_ids(target)) {
 				size_t params[2] = {behalfof.value, target.value};
-				sv->subelements.push_back(create_tex_block(TX_CALL_TO_A1, params,2,sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text));
+				create_tex_block(TX_CALL_TO_A1, params,2,sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 			} else {
 				size_t param = behalfof.value;
-				sv->subelements.push_back(create_tex_block(TX_CALL_TO_A2, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text));
+				create_tex_block(TX_CALL_TO_A2, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 			}
 		}, 0.0);
 		if (!rvalue) {
@@ -108,7 +106,7 @@ bool will_attend_event(char_id_t person, char_id_t host, unsigned int event_id) 
 	} else {
 		const bool rvalue = make_yes_no_popup(global::uicontainer, get_simple_string(TX_L_INVITATION),  [host, event_id](const std::shared_ptr<uiScrollView>& sv) {
 			size_t params[2] = {host.value, event_template_by_id(event_id).name};
-			sv->subelements.push_back(create_tex_block(TX_INVITATION, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text));
+			create_tex_block(TX_INVITATION, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 		}, 0.0);
 		if (!rvalue) {
 			global::actionlist.add_new<relation_change>(host, person, static_cast<char>(-1), false);
@@ -123,7 +121,7 @@ bool will_attend_event_date(char_id_t person, char_id_t host, unsigned int event
 	} else {
 		const bool rvalue = make_yes_no_popup(global::uicontainer, get_simple_string(TX_L_INVITATION), [host, event_id, date](const std::shared_ptr<uiScrollView>& sv) {
 			size_t params[] = {host.value, event_template_by_id(event_id).name, date};
-			sv->subelements.push_back(create_tex_block(TX_INVITATION_DATE, params, 3, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text));
+			create_tex_block(TX_INVITATION_DATE, params, 3, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 		}, 0.0);
 		if (!rvalue) {
 			global::actionlist.add_new<relation_change>(host, person, static_cast<unsigned char>(-1), false);

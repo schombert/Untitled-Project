@@ -86,22 +86,16 @@ void peace_deal::implement_offer(INOUT(w_lock) l) const noexcept {
 			size_t params[] = {actor_hos.value, other_hos.value};
 			if (other_hos == global::playerid) {
 				if (deal->is_demand) {
-					const auto blk = create_tex_block(TX_P_ENFORCED_US, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-					sv->subelements.push_back(blk);
-					int y = blk->pos.height + 10;
+					int y = create_tex_block(TX_P_ENFORCED_US, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 10;
 					deal->to_ui(sv, 0, y, l);
 				}
 			} else {
 				if (!deal->is_demand) {
-					const auto blk = create_tex_block(TX_P_OFFER_ACCEPTED, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-					sv->subelements.push_back(blk);
-					int y = blk->pos.height + 10;
+					int y = create_tex_block(TX_P_OFFER_ACCEPTED, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 10;
 					deal->to_ui(sv, 0, y, l);
 					
 				} else {
-					const auto blk = create_tex_block(TX_P_ENFORCED, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-					sv->subelements.push_back(blk);
-					int y = blk->pos.height + 10;
+					int y = create_tex_block(TX_P_ENFORCED, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 10;
 					deal->to_ui(sv, 0, y, l);
 				}
 			}

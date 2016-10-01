@@ -229,6 +229,10 @@ void init_label_numbers() {
 	label_to_index[L"GOAL_DEF"] = TX_GOAL_DEF;
 	label_to_index[L"GOAL_CONQ"] = TX_GOAL_CONQ;
 	label_to_index[L"GOAL_DEJ"] = TX_GOAL_DEJ;
+	label_to_index[L"ADJ_GOAL_DEF"] = TX_ADJ_GOAL_DEF;
+	label_to_index[L"ADJ_GOAL_CONQ"] = TX_ADJ_GOAL_CONQ;
+	label_to_index[L"ADJ_GOAL_DEJ"] = TX_ADJ_GOAL_DEJ;
+	label_to_index[L"WAR_DEC"] = TX_WAR_DEC;
 	label_to_index[L"L_GOAL_DEF"] = TX_L_GOAL_DEF;
 	label_to_index[L"L_GOAL_CONQ"] = TX_L_GOAL_CONQ;
 	label_to_index[L"L_GOAL_DEJ"] = TX_L_GOAL_DEJ;

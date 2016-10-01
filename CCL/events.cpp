@@ -184,22 +184,19 @@ unsigned short get_occurance(IN(event_template) ev, IN(untitled_data) a, IN(unti
 	//return static_cast<unsigned short>(global::applyDistribution(std::discrete_distribution<int>(it_type(f, index_gen.begin()), it_type(f, index_gen.end()))));
 }
 
-std::shared_ptr<uiTextBlock> create_occurance_text(IN(event_template) ev, unsigned short occurance, char_id_t a, char_id_t b, IN(untitled_data) ad, IN(untitled_data) bd, int x, int y, int width, IN(std::shared_ptr<uiElement>) parent) noexcept {
+int create_occurance_text(IN(event_template) ev, unsigned short occurance, char_id_t a, char_id_t b, IN(untitled_data) ad, IN(untitled_data) bd, int x, int y, int width, IN(std::shared_ptr<uiElement>) parent) noexcept {
 	std::vector<layoutelement> layout;
-	std::shared_ptr<uiTextBlock> tb;
 
 	switch (occurance) {
 	case 1:
 	{
 		size_t params[3] = {a.value, b.value, ev.name};
-		tb = create_tex_block(TX_EV_NEG_REL, params, 3, parent, x, y, width, global::empty, global::standard_text);
-		break;
+		return create_tex_block(TX_EV_NEG_REL, params, 3, parent, x, y, width, global::empty, global::standard_text);
 	}
 	case 2:
 	{
 		size_t params[3] = {a.value, b.value, ev.name};
-		tb = create_tex_block(TX_EV_POS_REL, params, 3, parent, x, y, width, global::empty, global::standard_text);
-		break;
+		return create_tex_block(TX_EV_POS_REL, params, 3, parent, x, y, width, global::empty, global::standard_text);
 	}
 	case 3:
 	case 4:
@@ -214,38 +211,31 @@ std::shared_ptr<uiTextBlock> create_occurance_text(IN(event_template) ev, unsign
 		size_t params[3] = {a.value, b.value, static_cast<size_t>(occurance - 3)};
 		if ((ad.attrib.has_positive_N(occurance - 3) && bd.attrib.has_positive_N(occurance - 3)) ||
 			(ad.attrib.has_negative_N(occurance - 3) && bd.attrib.has_negative_N(occurance - 3))) {
-			tb = create_tex_block(TX_EV_POS_TRAIT, params, 3, parent, x, y, width, global::empty, global::standard_text);
+			return create_tex_block(TX_EV_POS_TRAIT, params, 3, parent, x, y, width, global::empty, global::standard_text);
 		} else {
-			tb = create_tex_block(TX_EV_NEG_TRAIT, params, 3, parent, x, y, width, global::empty, global::standard_text);
+			return create_tex_block(TX_EV_NEG_TRAIT, params, 3, parent, x, y, width, global::empty, global::standard_text);
 		}
-		break;
 	}
 	case 12:
 	case 13:
 	case 14:
 	{
 		size_t params[3] = {a.value, b.value, ev.name};
-		tb = create_tex_block(TX_EV_ENJOYED, params, 3, parent, x, y, width, global::empty, global::standard_text);
-		break;
+		return create_tex_block(TX_EV_ENJOYED, params, 3, parent, x, y, width, global::empty, global::standard_text);
 	}
 	case 15: //rel
 	{
 		size_t params[2] = {a.value, b.value};
-		tb = create_tex_block(TX_EV_REL_DIF, params, 2, parent, x, y, width, global::empty, global::standard_text);
-		break;
+		return create_tex_block(TX_EV_REL_DIF, params, 2, parent, x, y, width, global::empty, global::standard_text);
 	}
 	case 16: //cul
 	{
 		size_t params[2] = {a.value, b.value};
-		tb = create_tex_block(TX_EV_CUL_DIF, params, 2, parent, x, y, width, global::empty, global::standard_text);
-		break;
+		return create_tex_block(TX_EV_CUL_DIF, params, 2, parent, x, y, width, global::empty, global::standard_text);
 	}
 	default:
-		break;
+		return 0;
 	}
-
-	parent->subelements.push_back(tb);
-	return tb;
 }
 
 char relation_delta_by_occurance(unsigned short occurance) noexcept {
@@ -298,7 +288,7 @@ void schedule_event(unsigned int id, char_id_t host, char_id_t target, IN(w_lock
 		} else if (host == global::playerid) {
 			message_popup(global::uicontainer, get_simple_string(TX_L_INVITATION), [target](IN(std::shared_ptr<uiScrollView>) sv) {
 				size_t param = target.value;
-				sv->subelements.push_back(create_tex_block(TX_INVITATION_REFUSED, &param, 1, sv, 0, 0, sv->pos.width, global::empty, global::standard_text));
+				create_tex_block(TX_INVITATION_REFUSED, &param, 1, sv, 0, 0, sv->pos.width, global::empty, global::standard_text);
 			});
 		}
 	}
@@ -436,7 +426,7 @@ void SetupEventWindow(char_id_t host, bool clear) noexcept {
 			event_win.target = 0;
 			event_win.decription->subelements.clear();
 			std::vector<layoutelement> layout;
-			event_win.decription->subelements.push_back(create_tex_block(ev.text,event_win.decription,0,0, event_win.decription->pos.width, global::empty, global::standard_text));
+			create_tex_block(ev.text,event_win.decription,0,0, event_win.decription->pos.width, global::empty, global::standard_text);
 			//event_win.decription->add_element<uiTextBlock>(0, 0, event_win.decription->pos.width, layout, global::empty, global::standard_text, std::vector<std::string>{ev.text});
 			event_win.decription->calcTotalHeight();
 		}

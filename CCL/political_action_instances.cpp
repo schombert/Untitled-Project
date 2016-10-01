@@ -2,6 +2,8 @@
 #include "political_action_instances.h"
 #include "action_opinion.h"
 #include "WarPane.h"
+#include "wardata.h"
+#include "i18n.h"
 
 bool pa_war_declaration::is_possible(IN(g_lock) l) const {
 	cflat_set<admin_id_t> tcontrolled;
@@ -23,7 +25,11 @@ bool pa_war_declaration::is_possible(IN(g_lock) l) const {
 }
 
 void pa_war_declaration::display_description(IN(std::shared_ptr<uiElement>) parent, INOUT(int) x, INOUT(int) y, IN(g_lock) l) const {
-	//TODO
+	const int blkwidth = (parent->pos.width - x) - 5;
+	size_t params[2 + max_extra_goal_params] = {target.value, 0};
+	goal_to_war_label(wg, params);
+	y += create_tex_block(TX_WAR_DEC, params, 2 + max_extra_goal_params, parent, x, y, blkwidth, global::empty, global::standard_text);
+	x += blkwidth;
 };
 
 void pa_war_declaration::do_action(INOUT(w_lock) l) const {

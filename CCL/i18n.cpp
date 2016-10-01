@@ -598,11 +598,11 @@ std::wstring w_day_to_string_short(unsigned int iv) noexcept {
 	return get_p_string(TX_S_DATE, params, 3);
 }
 
-std::shared_ptr<uiTextBlock> create_tex_block(size_t id, std::weak_ptr<uiElement> p, int ix, int iy, int iwidth, IN(paint_region) paint, IN(text_format) format) noexcept {
+int create_tex_block(size_t id, IN(std::shared_ptr<uiElement>) p, int ix, int iy, int iwidth, IN(paint_region) paint, IN(text_format) format) noexcept {
 	return create_tex_block(id, nullptr, 0, p, ix, iy, iwidth, paint, format);
 }
 
-std::shared_ptr<uiTextBlock> create_tex_block(size_t id, const size_t * params, size_t count, std::weak_ptr<uiElement> p, int ix, int iy, int iwidth, IN(paint_region) paint, IN(text_format) format) noexcept {
+int create_tex_block(size_t id, const size_t * params, size_t count, IN(std::shared_ptr<uiElement>) p, int ix, int iy, int iwidth, IN(paint_region) paint, IN(text_format) format) noexcept {
 	cvector<layoutelement> layout;
 
 	cvector<std::wstring> tstrings;
@@ -610,7 +610,8 @@ std::shared_ptr<uiTextBlock> create_tex_block(size_t id, const size_t * params, 
 
 	text_records[id]([&tstrings, &links](h_link_ident i, IN(std::wstring) s) { links.emplace_back(i); tstrings.emplace_back(s); }, params, count);
 
-	const auto tb = std::make_shared<uiTextBlock>(p, ix, iy, iwidth, layout, paint, format, tstrings);
+	const auto tb = p->add_element<uiTextBlock>(ix, iy, iwidth, layout, paint, format, tstrings);
+
 	for (size_t i = 0; i < links.size(); ++i) {
 		if(links[i].type == 1)
 			tb->addLink(i, layout, [t = links[i].ident.c](uiInvisibleButton*) { SetupChPane(char_id_t(t)); });
@@ -624,7 +625,7 @@ std::shared_ptr<uiTextBlock> create_tex_block(size_t id, const size_t * params, 
 			tb->addLink(i, layout, [t = links[i].ident.u](uiInvisibleButton*) { SetupCulPane(cul_id_t(t)); });
 	}
 
-	return tb;
+	return tb->pos.height;
 }
 
 int get_linear_ui(size_t id, const size_t* params, size_t count, IN(std::shared_ptr<uiElement>) p, int ix, int iy, IN(paint_region) paint, IN(text_format) format) noexcept {

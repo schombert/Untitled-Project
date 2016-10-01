@@ -133,8 +133,7 @@ war_id_t new_war_pair(char_id_t a, wargoal attacker_goal, char_id_t d, INOUT(w_l
 				if (global::playerid == target) {
 					message_popup(global::uicontainer, get_simple_string(TX_DEF_CALL), [id](IN(std::shared_ptr<uiScrollView>) sv) noexcept {
 						size_t param = id.value;
-						const auto blk = create_tex_block(TX_DEF_CALL_HONORED, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-						sv->subelements.push_back(blk);
+						create_tex_block(TX_DEF_CALL_HONORED, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 					});
 				}
 			} else {
@@ -143,8 +142,7 @@ war_id_t new_war_pair(char_id_t a, wargoal attacker_goal, char_id_t d, INOUT(w_l
 				if (global::playerid == target) {
 					message_popup(global::uicontainer, get_simple_string(TX_DEF_CALL), [id](IN(std::shared_ptr<uiScrollView>) sv) noexcept {
 						size_t param = id.value;
-						const auto blk = create_tex_block(TX_DEF_CALL_DISHONORED, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-						sv->subelements.push_back(blk);
+						create_tex_block(TX_DEF_CALL_DISHONORED, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 					});
 				}
 			}
@@ -547,6 +545,26 @@ double display_goal(IN(std::shared_ptr<uiElement>) parent, int x, int &y, IN(war
 	}
 	}
 	return 0.0;
+}
+
+void goal_to_war_label(IN(wargoal) goal, IN_P(size_t) params) {
+	switch (goal.type) {
+	case wargoal::WARGOAL_NONE:
+	{
+	}
+	case wargoal::WARGOAL_DEFENSIVE:
+	{
+	}
+	case wargoal::WARGOAL_CONQUEST:
+	{
+		params[1] = TX_ADJ_GOAL_CONQ;
+	}
+	case wargoal::WARGOAL_DEJURE:
+	{
+		params[1] = TX_ADJ_GOAL_DEJ;
+		params[2] = goal.data.title_for.value;
+	}
+	}
 }
 
 void adjust_alloc_to(size_t front_index, INOUT(war_pair) w, bool attacker, float target, IN(w_lock) l) {

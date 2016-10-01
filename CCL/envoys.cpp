@@ -294,12 +294,10 @@ bool make_defensive_offer(char_id_t from, char_id_t to, INOUT(pact_data) pact, I
 	//pact made, check for player consent to offer
 	if (to == global::playerid) {
 		l.unlock();
-		const bool res = make_yes_no_popup(global::uicontainer, get_simple_string(TX_ENVOY_RESULT), [from, &pact](IN(std::shared_ptr<uiScrollView>) sv) {
-			size_t param = from.value;
-				const auto tb = create_tex_block(TX_ENVOY_PACT_OFFER, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-				sv->subelements.push_back(tb);
-
-				int y = tb->pos.height + tb->pos.top + 5;
+		const bool res = make_yes_no_popup(global::uicontainer, get_simple_string(TX_ENVOY_RESULT),
+			[from, &pact](IN(std::shared_ptr<uiScrollView>) sv) {
+				size_t param = from.value;
+				int y = create_tex_block(TX_ENVOY_PACT_OFFER, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 5;
 				r_lock l;
 				pact_to_ui(0, y, sv, pact, l);
 			}, to_d < 0 ? static_cast<size_t>(-to_d) : 0, to_d > 0 ? static_cast<size_t>(to_d) : 0);
@@ -329,10 +327,7 @@ bool make_defensive_against_offer(char_id_t from, char_id_t to, INOUT(pact_data)
 		l.unlock();
 		const bool res = make_yes_no_popup(global::uicontainer, get_simple_string(TX_ENVOY_RESULT), [from, &pact](IN(std::shared_ptr<uiScrollView>) sv) {
 			size_t param = from.value;
-			const auto tb = create_tex_block(TX_ENVOY_PACT_OFFER, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-			sv->subelements.push_back(tb);
-
-			int y = tb->pos.height + tb->pos.top + 5;
+			int y = create_tex_block(TX_ENVOY_PACT_OFFER, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 5;
 			r_lock l;
 			pact_to_ui(0, y, sv, pact, l);
 		}, to_d < 0 ? static_cast<size_t>(-to_d) : 0, to_d > 0 ? static_cast<size_t>(to_d) : 0);
@@ -362,10 +357,7 @@ bool make_nonaggression_offer(char_id_t from, char_id_t to, INOUT(pact_data) pac
 		l.unlock();
 		const bool res = make_yes_no_popup(global::uicontainer, get_simple_string(TX_ENVOY_RESULT), [from, &pact](IN(std::shared_ptr<uiScrollView>) sv) {
 			size_t param = from.value;
-			const auto tb = create_tex_block(TX_ENVOY_PACT_OFFER, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-			sv->subelements.push_back(tb);
-
-			int y = tb->pos.height + tb->pos.top + 5;
+			int y = create_tex_block(TX_ENVOY_PACT_OFFER, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 5;
 			r_lock l;
 			pact_to_ui(0, y, sv, pact, l);
 		}, to_d < 0 ? static_cast<size_t>(-to_d) : 0, to_d > 0 ? static_cast<size_t>(to_d) : 0);
@@ -404,9 +396,8 @@ void do_envoy_meeting(char_id_t from, char_id_t envoy, char_id_t to, IN(w_lock) 
 			message_popup(global::uicontainer, get_simple_string(TX_ENVOY_RECEIVED), [occ, envoy, to, from](IN(std::shared_ptr<uiScrollView>) sv) noexcept {
 				with_udata_2(to, envoy, r_lock(), [envoy, from, to, occ, &sv](IN(udata) itd, IN(udata) ied) noexcept {
 					size_t params[2] = {envoy.value, from.value};
-					const auto tb = create_tex_block(TX_ENVOY_NOTICE, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-					sv->subelements.push_back(tb);
-					create_occurance_text(event_template_by_id(EVENT_MEETING), occ, envoy, to, ied, itd, 0, tb->pos.height + 15, sv->pos.width - 10, sv);
+					const int y = create_tex_block(TX_ENVOY_NOTICE, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
+					create_occurance_text(event_template_by_id(EVENT_MEETING), occ, envoy, to, ied, itd, 0, y + 15, sv->pos.width - 10, sv);
 				});
 			});
 		}
@@ -538,10 +529,7 @@ void pact_mission::make_offer(admin_id_t source, char_id_t person, char_id_t oth
 			global::setFlag(FLG_MISSIONS_UPDATE);
 			modeless_trinary_popup(global::uicontainer, get_simple_string(TX_ENVOY_RESULT), [other, &l, th = this](IN(std::shared_ptr<uiScrollView>) sv) {
 				size_t param = other.value;
-				const auto tb = create_tex_block(TX_ENVOY_RETURN, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-				sv->subelements.push_back(tb);
-
-				int y = tb->pos.height + tb->pos.top + 5;
+				int y = create_tex_block(TX_ENVOY_RETURN, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text) + 5;
 				pact_to_ui(0, y, sv, th->offers.back(), l);
 			}, [i = this->index, source, onum = (offers.size()-1)](int res) {
 				if (res == 1) {

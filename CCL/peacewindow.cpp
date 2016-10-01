@@ -60,8 +60,7 @@ void InitPeaceWindow() noexcept {
 				pwin.offer.make_offer(l);
 		} else {
 			message_popup(global::uicontainer, get_simple_string(TX_L_ERROR), [](IN(std::shared_ptr<uiScrollView>) sv) {
-				const auto blk = create_tex_block(TX_DEAL_INVALID, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-				sv->subelements.push_back(blk);
+				create_tex_block(TX_DEAL_INVALID, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 			});
 		}
 	});

@@ -251,9 +251,7 @@ bool extend_pact_popup(IN(pact_data) pact) noexcept {
 void pact_tribute_notpaid_popup(IN(pact_data) pact, char_id_t breaker, IN(g_lock) l) noexcept {
 	message_popup(global::uicontainer, get_simple_string(TX_PACT_ENDED), [&pact, &l, breaker](const std::shared_ptr<uiScrollView>& sv) {
 		size_t param = breaker.value;
-		const auto tb = create_tex_block(TX_PACT_TRIBUTE_EX, &param, 1, sv, 1, 1, sv->pos.width - 5, global::empty, global::standard_text);
-		sv->subelements.push_back(tb);
-		int y = tb->pos.height + 10;
+		int y = create_tex_block(TX_PACT_TRIBUTE_EX, &param, 1, sv, 1, 1, sv->pos.width - 5, global::empty, global::standard_text) + 10;
 		pact_to_ui(1, y, sv, pact, l);
 	});
 }

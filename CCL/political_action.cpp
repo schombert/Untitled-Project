@@ -271,9 +271,7 @@ bool get_player_proceed_with_proposal(const IN_P(political_action) act, bool act
 		int y = 1;
 		int x = 1;
 		size_t param = proposal_from.value;
-		const auto tb = create_tex_block(TX_PROPOSAL_MADE_INTRO, &param, 1, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
-		sv->subelements.push_back(tb);
-		y += tb->pos.height;
+		y += 5 + create_tex_block(TX_PROPOSAL_MADE_INTRO, &param, 1, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
 
 		r_lock l;
 		act->display_description(sv, x, y, l);
@@ -295,11 +293,9 @@ bool get_player_proceed_with_proposal(const IN_P(political_action) act, bool act
 
 		x = 1;
 		if (action_needs_vote) {
-			const auto tb2 = create_tex_block(TX_PROPOSAL_MADE_VOTE, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
-			sv->subelements.push_back(tb2);
+			create_tex_block(TX_PROPOSAL_MADE_VOTE, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
 		} else {
-			const auto tb2 = create_tex_block(TX_PROPOSAL_MADE_EXEC, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
-			sv->subelements.push_back(tb2);
+			create_tex_block(TX_PROPOSAL_MADE_EXEC, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
 		}
 	}, player_eval);
 	l.lock();
@@ -312,9 +308,8 @@ bool get_player_vote(const IN_P(political_action) act, double player_eval, IN(st
 	const bool vote_for = make_yes_no_popup(global::uicontainer, get_simple_string(TX_VOTE), [act, &positive_influence, &negative_influence, &result_set](IN(std::shared_ptr<uiScrollView>) sv) {
 		int y = 1;
 		int x = 1;
-		const auto tb = create_tex_block(TX_VOTE_INTRO, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
-		sv->subelements.push_back(tb);
-		y += tb->pos.height;
+
+		y += 5 + create_tex_block(TX_VOTE_INTRO, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
 
 		r_lock l;
 		act->display_description(sv, x, y, l);
@@ -339,8 +334,7 @@ bool get_player_vote(const IN_P(political_action) act, double player_eval, IN(st
 		}
 
 		x = 1;
-		const auto tb2 = create_tex_block(TX_VOTE_END, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
-		sv->subelements.push_back(tb2);
+		create_tex_block(TX_VOTE_END, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
 	}, player_eval);
 	l.lock();
 
@@ -352,9 +346,8 @@ bool get_player_take_action(const IN_P(political_action) act, double player_eval
 	const bool do_action = make_yes_no_popup(global::uicontainer, get_simple_string(TX_PROPOSAL), [&council_members, act, &positive_influence, &negative_influence, &result_set](IN(std::shared_ptr<uiScrollView>) sv) {
 		int y = 1;
 		int x = 1;
-		const auto tb = create_tex_block(TX_ACTION_INTRO, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
-		sv->subelements.push_back(tb);
-		y += tb->pos.height;
+
+		y += 5 + create_tex_block(TX_ACTION_INTRO, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
 
 		r_lock l;
 		act->display_description(sv, x, y, l);
@@ -412,8 +405,7 @@ bool get_player_take_action(const IN_P(political_action) act, double player_eval
 		}
 
 		x = 1;
-		const auto tb2 = create_tex_block(TX_ACTION_END, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
-		sv->subelements.push_back(tb2);
+		create_tex_block(TX_ACTION_END, sv, x, y, sv->pos.width - 5, global::empty, global::standard_text);
 	}, player_eval);
 	l.lock();
 

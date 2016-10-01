@@ -42,7 +42,7 @@ void execute_event(unsigned int id, char_id_t host, char_id_t target, IN(w_lock)
 void schedule_event(unsigned int id, char_id_t host, char_id_t target, IN(w_lock) l) noexcept;
 char relation_delta_by_occurance(unsigned short occurance) noexcept;
 unsigned short get_occurance(IN(event_template) ev, IN(untitled_data) a, IN(untitled_data) b, size_t eventval) noexcept;
-std::shared_ptr<uiTextBlock> create_occurance_text(IN(event_template) ev, unsigned short occurance, char_id_t a, char_id_t b, IN(untitled_data) ad, IN(untitled_data) bd, int x, int y, int width, IN(std::shared_ptr<uiElement>) parent) noexcept;
+int create_occurance_text(IN(event_template) ev, unsigned short occurance, char_id_t a, char_id_t b, IN(untitled_data) ad, IN(untitled_data) bd, int x, int y, int width, IN(std::shared_ptr<uiElement>) parent) noexcept;
 
 void InitEventWindow() noexcept;
 void SetupEventWindow(char_id_t host, bool clear = true) noexcept;
