@@ -59,7 +59,7 @@ void InitPeaceWindow() noexcept {
 			else
 				pwin.offer.make_offer(l);
 		} else {
-			message_popup(global::uicontainer, get_simple_string(TX_L_ERROR), [](IN(std::shared_ptr<uiScrollView>) sv) {
+			message_popup(get_simple_string(TX_L_ERROR), [](IN(std::shared_ptr<uiElement>) sv) {
 				create_tex_block(TX_DEAL_INVALID, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 			});
 		}

@@ -393,7 +393,7 @@ void do_envoy_meeting(char_id_t from, char_id_t envoy, char_id_t to, IN(w_lock) 
 		const auto occ = get_occurance(ev, td, ed, 0);
 
 		if (to == global::playerid && occ != 0) {
-			message_popup(global::uicontainer, get_simple_string(TX_ENVOY_RECEIVED), [occ, envoy, to, from](IN(std::shared_ptr<uiScrollView>) sv) noexcept {
+			message_popup(get_simple_string(TX_ENVOY_RECEIVED), [occ, envoy, to, from](IN(std::shared_ptr<uiElement>) sv) noexcept {
 				with_udata_2(to, envoy, r_lock(), [envoy, from, to, occ, &sv](IN(udata) itd, IN(udata) ied) noexcept {
 					size_t params[2] = {envoy.value, from.value};
 					const int y = create_tex_block(TX_ENVOY_NOTICE, params, 2, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);

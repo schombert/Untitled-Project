@@ -131,7 +131,7 @@ war_id_t new_war_pair(char_id_t a, wargoal attacker_goal, char_id_t d, INOUT(w_l
 				});
 
 				if (global::playerid == target) {
-					message_popup(global::uicontainer, get_simple_string(TX_DEF_CALL), [id](IN(std::shared_ptr<uiScrollView>) sv) noexcept {
+					message_popup( get_simple_string(TX_DEF_CALL), [id](IN(std::shared_ptr<uiElement>) sv) noexcept {
 						size_t param = id.value;
 						create_tex_block(TX_DEF_CALL_HONORED, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 					});
@@ -140,7 +140,7 @@ war_id_t new_war_pair(char_id_t a, wargoal attacker_goal, char_id_t d, INOUT(w_l
 				break_pact(pct, id, l);
 
 				if (global::playerid == target) {
-					message_popup(global::uicontainer, get_simple_string(TX_DEF_CALL), [id](IN(std::shared_ptr<uiScrollView>) sv) noexcept {
+					message_popup( get_simple_string(TX_DEF_CALL), [id](IN(std::shared_ptr<uiElement>) sv) noexcept {
 						size_t param = id.value;
 						create_tex_block(TX_DEF_CALL_DISHONORED, &param, 1, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
 					});

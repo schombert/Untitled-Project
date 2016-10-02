@@ -89,7 +89,7 @@ void political_action_t<T>::propose(char_id_t proposal_from, char_id_t proposal_
 	if (do_proposal) {
 		if (!((T*)this)->needs_vote(l)) {
 			if (proposal_from == global::playerid) {
-				message_popup(global::uicontainer, get_simple_string(TX_PROPOSAL), [proposal_to, th = ((T*)this), &l](IN(std::shared_ptr<uiScrollView>) sv) {
+				message_popup( get_simple_string(TX_PROPOSAL), [proposal_to, th = ((T*)this), &l](IN(std::shared_ptr<uiElement>) sv) {
 					size_t param = proposal_to.value;
 					int y = create_tex_block(TX_PROPOSAL_ACCEPTED_EXEC, &param, 1, sv, 1, 1, sv->pos.width - 5, global::empty, global::standard_text) + 10;
 					int x = 1;
@@ -100,7 +100,7 @@ void political_action_t<T>::propose(char_id_t proposal_from, char_id_t proposal_
 			take_action_inner(positive_influence, proposal_from, l);
 		} else {
 			if (proposal_from == global::playerid) {
-				message_popup(global::uicontainer, get_simple_string(TX_PROPOSAL), [proposal_to, th = ((T*)this), &l](IN(std::shared_ptr<uiScrollView>) sv) {
+				message_popup( get_simple_string(TX_PROPOSAL), [proposal_to, th = ((T*)this), &l](IN(std::shared_ptr<uiElement>) sv) {
 					size_t param = proposal_to.value;
 					int y = create_tex_block(TX_PROPOSAL_ACCEPTED_VOTE, &param, 1, sv, 1, 1, sv->pos.width - 5, global::empty, global::standard_text) + 10;
 					int x = 1;
@@ -112,7 +112,7 @@ void political_action_t<T>::propose(char_id_t proposal_from, char_id_t proposal_
 		}
 	} else {
 		if (proposal_from == global::playerid) {
-			message_popup(global::uicontainer, get_simple_string(TX_PROPOSAL), [proposal_to, th = ((T*)this), &l](IN(std::shared_ptr<uiScrollView>) sv) {
+			message_popup( get_simple_string(TX_PROPOSAL), [proposal_to, th = ((T*)this), &l](IN(std::shared_ptr<uiElement>) sv) {
 				size_t param = proposal_to.value;
 				int y = create_tex_block(TX_PROPOSAL_REFUSED, &param, 1, sv, 1, 1, sv->pos.width - 5, global::empty, global::standard_text) + 10;
 				int x = 1;

@@ -415,8 +415,6 @@ public:
 	virtual void draw(OGLLock &target, int x, int y);;
 };
 
-void makePopup(const std::shared_ptr<uiElement> &parent, sf::Font* font, const std::wstring &title, size_t indx, size_t* params = nullptr, size_t len = 0);
-
 class uiScrollView : public uiVRect {
 public:
 	//sf::RenderTexture tex;
@@ -911,8 +909,11 @@ void open_window_tiled(IN(std::shared_ptr<uiDragRect>) win, bool to_front = true
 
 int make_trinary_popup(const std::shared_ptr<uiElement> &parent, const std::wstring& title, const std::function<void(const std::shared_ptr<uiScrollView>&)> &setup_contents, const size_t stress_yes, const size_t stress_maybe, const size_t stress_no, const size_t* const labels = accept_postpone_decline_array);
 int make_trinary_popup(const std::shared_ptr<uiElement> &parent, const std::wstring& title, const std::function<void(const std::shared_ptr<uiScrollView>&)> &setup_contents, double positive_bias, const size_t* const labels = accept_postpone_decline_array);
-void message_popup(const std::shared_ptr<uiElement> &parent, const std::wstring &title,  const std::function<void(const std::shared_ptr<uiScrollView>&)> &setup_contents);
+// void message_popup(const std::shared_ptr<uiElement> &parent, const std::wstring &title,  const std::function<void(const std::shared_ptr<uiScrollView>&)> &setup_contents);
 void modeless_trinary_popup(IN(std::shared_ptr<uiElement>) parent, IN(std::wstring) title, IN(std::function<void(const std::shared_ptr<uiScrollView>&)>) setup_contents, IN(std::function<void(int)>) results , const size_t stress_yes, const size_t stress_maybe, const size_t stress_no, const size_t* const labels = accept_postpone_decline_array);
+
+void init_message_box();
+void message_popup(const std::wstring &title, IN(std::function<void(const std::shared_ptr<uiElement>&)>) setup_contents);
 
 void i18n_message_popup(size_t title_text, size_t body_text, const size_t* params = nullptr, size_t numparams = 0);
 bool i18n_yes_no_popup(size_t title_text, size_t body_text, int stress_bias, const size_t* params = nullptr, size_t numparams = 0, const IN_P(size_t) labels = yes_no_array);

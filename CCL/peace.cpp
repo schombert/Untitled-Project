@@ -82,7 +82,7 @@ void peace_deal::implement_offer(INOUT(w_lock) l) const noexcept {
 	if ((interested_participant) &&
 		(actor_hos != global::playerid || !is_demand) &&
 		(other_hos != global::playerid || is_demand)) {
-		message_popup(global::uicontainer, get_simple_string(TX_PEACE_ACCOUNCEMENT), [actor_hos, other_hos, deal = this, wp, &l](const std::shared_ptr<uiScrollView>& sv) {
+		message_popup(get_simple_string(TX_PEACE_ACCOUNCEMENT), [actor_hos, other_hos, deal = this, wp, &l](const std::shared_ptr<uiElement>& sv) {
 			size_t params[] = {actor_hos.value, other_hos.value};
 			if (other_hos == global::playerid) {
 				if (deal->is_demand) {

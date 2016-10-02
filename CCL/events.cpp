@@ -286,7 +286,7 @@ void schedule_event(unsigned int id, char_id_t host, char_id_t target, IN(w_lock
 			add_expense(host, EXPENSE_EVENT, mths, event_template_by_id(id).monthly_cost(host, target, l), l);
 			with_udata(host, l, [](INOUT(udata) d) noexcept { d.flags |= P_FLAG_PERPARING_EVENT; });
 		} else if (host == global::playerid) {
-			message_popup(global::uicontainer, get_simple_string(TX_L_INVITATION), [target](IN(std::shared_ptr<uiScrollView>) sv) {
+			message_popup(get_simple_string(TX_L_INVITATION), [target](IN(std::shared_ptr<uiElement>) sv) {
 				size_t param = target.value;
 				create_tex_block(TX_INVITATION_REFUSED, &param, 1, sv, 0, 0, sv->pos.width, global::empty, global::standard_text);
 			});
@@ -329,7 +329,7 @@ void execute_event(unsigned int id, char_id_t host, char_id_t target, IN(w_lock)
 							global::uiqueue.push([a, b, id, occurance] {
 								r_lock l;
 								with_udata_2(a, b, l, [a, b, id, occurance](IN(udata) iad, IN(udata) ibd) noexcept {
-									message_popup(global::uicontainer, get_simple_string(TX_L_REL_CHANGE), [id, a, b, &ibd, &iad, occurance](IN(std::shared_ptr<uiScrollView>) sv) {
+									message_popup(get_simple_string(TX_L_REL_CHANGE), [id, a, b, &ibd, &iad, occurance](IN(std::shared_ptr<uiElement>) sv) {
 										create_occurance_text(event_template_by_id(id), occurance, a, b, iad, ibd, 0, 0, sv->pos.width - 10, sv);
 									});
 								});

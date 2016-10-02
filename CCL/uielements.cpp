@@ -431,31 +431,23 @@ std::weak_ptr<uiSimpleTooltip> uiSimpleTooltip::active;
 
 
 void makeWarDeclaration( title_id titleA, title_id titleB, unsigned char type) {
-	global::uiqueue.push([=]{
-		size_t params[2] = {titleA, titleB};
-		makePopup(global::uicontainer, global::font, get_simple_string(TX_L_WAR_DEC), type == wargoal::WARGOAL_DEJURE ? TX_DJ_WAR_DEC : TX_CON_WAR_DEC, params, 2);
-	});
+	size_t params[2] = {titleA, titleB};
+	i18n_message_popup(TX_L_WAR_DEC, type == wargoal::WARGOAL_DEJURE ? TX_DJ_WAR_DEC : TX_CON_WAR_DEC, params, 2);
 }
 
 void makePeaceDeclaration( title_id titleA, title_id titleB) {
-	global::uiqueue.push([ titleA, titleB] {
-		size_t params[2] = {titleA, titleB};
-		makePopup(global::uicontainer, global::font, get_simple_string(TX_L_PEACE), TX_PEACE_DEC, params, 2);
-	});
+	size_t params[2] = {titleA, titleB};
+	i18n_message_popup(TX_L_PEACE, TX_PEACE_DEC, params, 2);
 }
 
 void makeSeigeResults( title_id winnertitle, title_id losertitle, prov_id prov, unsigned int duration) {
-	global::uiqueue.push([ winnertitle, losertitle, prov, duration]{
-		size_t params[4] = {losertitle, winnertitle, prov, duration};
-		makePopup(global::uicontainer, global::font, get_simple_string(TX_L_SEIGE), TX_SEIGE_END, params, 4);
-	});
+	size_t params[4] = {losertitle, winnertitle, prov, duration};
+	i18n_message_popup(TX_L_SEIGE, TX_SEIGE_END, params, 4);
 }
 
 void make_relationship_announcement( char_id a, char_id b, bool hate, bool gained) {
-	global::uiqueue.push([ a, b, hate, gained] {
-		size_t params[4] = {a, b, gained ? 0ui64 : 1ui64, hate ? 0ui64 : 1ui64};
-		makePopup(global::uicontainer, global::font, get_simple_string(TX_L_REL_CHANGE), TX_REL_CHANGE, params, 4);
-	});
+	size_t params[4] = {a, b, gained ? 0ui64 : 1ui64, hate ? 0ui64 : 1ui64};
+	i18n_message_popup(TX_L_REL_CHANGE, TX_REL_CHANGE, params, 4);
 }
 
 std::shared_ptr<uiButton> character_selection_menu(IN(std::shared_ptr<uiElement>) parent, int x, int y, int w, int h, IN(std::wstring) text, IN(paint_region) paint, IN(text_format) format,  IN(std::function<void(cvector<char_id_t>&)>) get_list, IN(std::function<void(char_id_t)>) choice_made) {
@@ -489,10 +481,8 @@ std::shared_ptr<uiButton> character_selection_menu(IN(std::shared_ptr<uiElement>
 }
 
 void makeBattleResults( title_id winnertitle, title_id losertitle, int winnerloss, int loserloss) {
-	global::uiqueue.push([=]{
-		size_t params[4] = {winnertitle, losertitle, static_cast<size_t>(winnerloss), static_cast<size_t>(loserloss)};
-		makePopup(global::uicontainer, global::font, get_simple_string(TX_L_BAT_RESULTS), TX_BATTLE_RESULTS, params, 4);
-	});
+	size_t params[4] = {winnertitle, losertitle, static_cast<size_t>(winnerloss), static_cast<size_t>(loserloss)};
+	i18n_message_popup(TX_L_BAT_RESULTS, TX_BATTLE_RESULTS, params, 4);
 }
 
 template<typename T, typename U>
@@ -570,13 +560,57 @@ void layouttotext(INOUT(T) elm, IN(U) layout, sf::Font* font, unsigned int maxwi
 	}
 }
 
+void open_window_centered(IN(std::shared_ptr<uiDragRect>) win) {
+	win->setVisible(true);
+	global::uiqueue.push([win] {
+		win->setVisible(false);
+		auto openrect = global::uicontainer->largest_free_rect(win->pos.width, win->pos.height);
+		win->setVisible(true);
+
+		if (openrect.width == 0) {
+			openrect = global::uicontainer->pos;
+		}
+
+		win->pos.left = openrect.width / 2 + openrect.left - win->pos.width / 2;
+		win->pos.top = openrect.height / 2 + openrect.top - win->pos.height / 2;
+
+		win->toFront(global::uicontainer);
+	});
+}
+int open_win_lastx = 5;
+int open_win_lasty = 5;
+
+void _inline_open_window_tiled(IN(std::shared_ptr<uiDragRect>) win, bool to_front) {
+	win->setVisible(false);
+	auto openrect = global::uicontainer->largest_free_rect(win->pos.width + 5, win->pos.height + 5);
+	win->setVisible(true);
+
+	if (openrect.width == 0) {
+		win->pos.left = open_win_lastx;
+		win->pos.top = open_win_lasty;
+	} else {
+		open_win_lastx = (win->pos.left = openrect.left + 5);
+		open_win_lasty = (win->pos.top = openrect.top + 5);
+	}
+
+	if (to_front)
+		win->toFront(global::uicontainer);
+	else
+		global::uicontainer->subelements.push_back(win);
+}
+
+void open_window_tiled(IN(std::shared_ptr<uiDragRect>) win, bool to_front) {
+	win->setVisible(true);
+	global::uiqueue.push([win, to_front] {
+		_inline_open_window_tiled(win, to_front);
+	});
+}
+
 #define MB_WIDTH 500
 #define MB_HEIGHT 350
 #define MB_BORDER 15
 #define MB_TITLE 25
 #define MB_BUTTON 30
-
-
 
 auto standard_title(const std::wstring& title) {
 	return [&title](const std::shared_ptr<uiDragRect>& dr){
@@ -611,11 +645,11 @@ void make_popup_rect(const std::shared_ptr<uiElement> &parent,  F1&& title_funct
 	open_window_tiled(dr, false);
 }
 
-void makePopup(const std::shared_ptr<uiElement> &parent, sf::Font* font, const std::wstring &title, size_t indx, size_t* params, size_t len) {
-	message_popup(parent, title, [params, len, indx](IN(std::shared_ptr<uiScrollView>) sv) {
-		create_tex_block(indx, params, len, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
-	});
-}
+// void makePopup(const std::shared_ptr<uiElement> &parent, sf::Font* font, const std::wstring &title, size_t indx, size_t* params, size_t len) {
+//	message_popup(parent, title, [params, len, indx](IN(std::shared_ptr<uiScrollView>) sv) {
+//		create_tex_block(indx, params, len, sv, 0, 0, sv->pos.width - 10, global::empty, global::standard_text);
+//	});
+// }
 
 void resize_popup(IN(std::shared_ptr<uiDragRect>) dr, IN(std::shared_ptr<uiScrollView>) sv) {
 	if (sv->totalheight < sv->pos.height) {
@@ -630,7 +664,58 @@ void resize_popup(IN(std::shared_ptr<uiDragRect>) dr, IN(std::shared_ptr<uiScrol
 	}
 }
 
-void message_popup(const std::shared_ptr<uiElement> &parent, const std::wstring &title,  const std::function<void(const std::shared_ptr<uiScrollView>&)> &setup_contents) {
+std::shared_ptr<uiDragRect> message_scroll;
+std::shared_ptr<uiScrollView> message_scroll_contents;
+std::shared_ptr<uiButton> message_scroll_close;
+int mag_contents_y_off = 0;
+
+constexpr int min_yoff = 30;
+
+void init_message_box() {
+	message_scroll = global::uicontainer->add_element<uiDragRect>(10, min_yoff, MB_WIDTH, MB_HEIGHT, global::solid_border);
+	message_scroll_contents = message_scroll->add_element<uiScrollView>(MB_BORDER, MB_BORDER, MB_WIDTH - MB_BORDER * 2 + 10, MB_HEIGHT - MB_BORDER * 2 - MB_BUTTON);
+	message_scroll_close = message_scroll->add_element<uiButton>(MB_WIDTH / 2 - 150 / 2, MB_HEIGHT - MB_BORDER - MB_BUTTON + 5, 150, MB_BUTTON - 5, get_simple_string(TX_CLOSE), global::solid_border, global::header_text, [](uiButton*b){
+		message_scroll->setVisible(false);
+		global::uiqueue.push([]() {
+			message_scroll_contents->subelements.clear();
+			mag_contents_y_off = 0;
+		});
+	});
+	message_scroll->setVisible(false);
+}
+
+void message_popup(const std::wstring &title, IN(std::function<void(const std::shared_ptr<uiElement>&)>) setup_contents) {
+	const auto content = std::make_shared<uiElement>(0, 0, message_scroll_contents->pos.width, 0, message_scroll_contents);
+	setup_contents(content);
+
+	for (IN(auto) ce : content->subelements) {
+		content->pos.height = std::max(content->pos.height, ce->pos.height + ce->pos.top);
+	}
+
+	global::uiqueue.push([content, title]() {
+		const auto title_lbl = message_scroll_contents->add_element<uiCenterdText>(0, mag_contents_y_off, message_scroll_contents->pos.width, title, global::empty, global::header_text);
+		mag_contents_y_off += (title_lbl->pos.height + 5);
+
+		message_scroll_contents->subelements.push_back(content);
+
+		content->pos.top = mag_contents_y_off;
+		mag_contents_y_off += (content->pos.height + 5);
+
+		const int yextent = std::min(global::uicontainer->pos.height - min_yoff, mag_contents_y_off + MB_BORDER * 2 + MB_BUTTON);
+
+		message_scroll->pos.height = yextent;
+
+		message_scroll_contents->pos.height = yextent - (MB_BORDER * 2 + MB_BUTTON);
+		message_scroll_contents->calcTotalHeight();
+
+		message_scroll_close->pos.top = yextent - (MB_BORDER + MB_BUTTON);
+
+		message_scroll->setVisible(true);
+		_inline_open_window_tiled(message_scroll, true);
+	});
+}
+
+/*void message_popup(const std::shared_ptr<uiElement> &parent, const std::wstring &title,  const std::function<void(const std::shared_ptr<uiScrollView>&)> &setup_contents) {
 	make_popup_rect(parent, standard_title(title), [&setup_contents, wp = std::weak_ptr<uiElement>(parent)](const std::shared_ptr<uiDragRect>& dr) {
 		const auto sv = std::make_shared<uiScrollView>(MB_BORDER, MB_BORDER + MB_TITLE, MB_WIDTH - MB_BORDER * 2 + 10, MB_HEIGHT - MB_BORDER * 2 - MB_TITLE - MB_BUTTON, dr);
 		dr->subelements.push_back(sv);
@@ -647,10 +732,10 @@ void message_popup(const std::shared_ptr<uiElement> &parent, const std::wstring 
 		sv->calcTotalHeight();
 		resize_popup(dr, sv);
 	});
-}
+}*/
 
 void i18n_message_popup(size_t title_text, size_t body_text, const size_t* params, size_t numparams) {
-	message_popup(global::uicontainer, get_simple_string(title_text), [body_text, params, numparams](IN(std::shared_ptr<uiScrollView>) sv) {
+	message_popup(get_simple_string(title_text), [body_text, params, numparams](IN(std::shared_ptr<uiElement>) sv) {
 		create_tex_block(body_text, params, numparams, sv, 1, 1, sv->pos.width - 11, global::empty, global::standard_text);
 	});
 }
@@ -778,52 +863,6 @@ bool make_yes_no_popup_i(IN(std::shared_ptr<uiElement>) parent, IN(std::wstring)
 		sv->calcTotalHeight();
 		resize_popup(dr, sv);
 	}, stress_yes, stress_no, labels);
-}
-
-
-void open_window_centered(IN(std::shared_ptr<uiDragRect>) win) {
-	win->setVisible(true);
-	global::uiqueue.push([win] {
-		win->setVisible(false);
-		auto openrect = global::uicontainer->largest_free_rect(win->pos.width, win->pos.height);
-		win->setVisible(true);
-		
-		if (openrect.width == 0) {
-			openrect = global::uicontainer->pos;
-		}
-
-		win->pos.left = openrect.width / 2 + openrect.left - win->pos.width / 2;
-		win->pos.top = openrect.height / 2 + openrect.top - win->pos.height / 2;
-
-		win->toFront(global::uicontainer);
-	});
-}
-
-int open_win_lastx = 5;
-int open_win_lasty = 5;
-
-void open_window_tiled(IN(std::shared_ptr<uiDragRect>) win, bool to_front) {
-	
-
-	win->setVisible(true);
-	global::uiqueue.push([win, to_front] {
-		win->setVisible(false);
-		auto openrect = global::uicontainer->largest_free_rect(win->pos.width+5, win->pos.height+5);
-		win->setVisible(true);
-
-		if (openrect.width == 0) {
-			win->pos.left = open_win_lastx;
-			win->pos.top = open_win_lasty;
-		} else {
-			open_win_lastx = (win->pos.left = openrect.left + 5);
-			open_win_lasty = (win->pos.top = openrect.top + 5);
-		}
-
-		if (to_front)
-			win->toFront(global::uicontainer);
-		else
-			global::uicontainer->subelements.push_back(win);
-	});
 }
 
 int make_trinary_popup(const std::shared_ptr<uiElement> &parent, const std::wstring& title, const std::function<void(const std::shared_ptr<uiScrollView>&)> &setup_contents, const size_t stress_yes, const size_t stress_maybe, const size_t stress_no, const size_t* const labels) {

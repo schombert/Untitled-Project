@@ -602,6 +602,7 @@ int CALLBACK WinMain(
 	InitPlansWindow(&font);
 	InitPeaceWindow();
 	InitEventWindow();
+	init_message_box();
 
 	init_pacts_ui();
 	init_all_generated_ui();

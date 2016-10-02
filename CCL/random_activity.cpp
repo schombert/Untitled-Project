@@ -52,54 +52,36 @@ public:
 		if (actor == global::playerid)
 			return false;
 
-		auto inst = this_type::generate_instance(adm, actor);
-
 		if (valid_ids(actor)) {
+			auto inst = this_type::generate_instance(adm, actor);
+
 			double des = this_type::eval_desireability(adm, actor, inst);
 			double reluctance = reluctance_adjustment(global::currentday - with_udata_force(actor, fake_lock(), [](IN(udata) d) noexcept { return d.activity; }));
 
 			if ((des - reluctance) * 2.0 > global_store.get_fast_double()) {
 				return this_type::do_activity(adm, actor, inst);
 			}
-		} else { //must be voted on
-			actor = this_type::get_voter(adm);
-			if (actor == global::playerid)
-				return false;
-
-			double des = this_type::eval_desireability(adm, actor, inst);
-			double reluctance = reluctance_adjustment(global::currentday - with_udata_force(actor, fake_lock(), [](IN(udata) d) noexcept { return d.activity; }));
-
-			if (des - reluctance > global_store.get_fast_double()) {
-				return this_type::vote_on_activity(adm, actor, inst);
-			}
 		}
 
 		return false;
 	}
+
 	static bool _do_admin_activity(IN(administration) adm, std::false_type) noexcept {
 		auto actor = this_type::get_actor(adm);
 
 		if (actor == global::playerid) {
 			return false;
-		} else if (valid_ids(actor)) {
+		} 
+
+		if (valid_ids(actor)) {
 			double des = this_type::eval_desireability(adm, actor);
 			double reluctance = reluctance_adjustment(global::currentday - with_udata_force(actor, fake_lock(), [](IN(udata) d) noexcept { return d.activity; }));
 
 			if (des - reluctance > global_store.get_fast_double()) {
 				return this_type::do_activity(adm, actor);
 			}
-		} else { //must be voted on
-			actor = this_type::get_voter(adm);
-			if (actor == global::playerid)
-				return false;
+		} 
 
-			double des = this_type::eval_desireability(adm, actor);
-			double reluctance = reluctance_adjustment(global::currentday - with_udata_force(actor, fake_lock(), [](IN(udata) d) noexcept { return d.activity; }));
-
-			if ((des - reluctance) * 2.0 > global_store.get_fast_double()) {
-				return this_type::vote_on_activity(adm, actor);
-			}
-		}
 		return false;
 	}
 
@@ -121,9 +103,6 @@ public:
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_diplo_decider(adm, fake_lock()); 
 	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
-	};
 	static char_id_t generate_instance(IN(administration) adm, char_id_t actor) noexcept {
 		return get_random_target(head_of_state(adm), fake_lock());
 	};
@@ -139,9 +118,6 @@ public:
 		global::actionlist.add_new<nocbwar>(head_of_state(adm), target);
 		return true;
 	};
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor, char_id_t target) noexcept {
-		return false;
-	};
 };
 
 ADM_ACTIVITY_CLASS(adm_a_defensive_pact) {
@@ -151,9 +127,6 @@ public:
 	};
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_diplo_decider(adm, fake_lock());
-	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
 	};
 	
 	static double eval_desireability(IN(administration) adm, char_id_t actor) noexcept {
@@ -167,9 +140,6 @@ public:
 		}
 		return false;
 	};
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor) noexcept {
-		return false;
-	};
 };
 
 ADM_ACTIVITY_CLASS(adm_a_defensive_against_pact) {
@@ -179,9 +149,6 @@ public:
 	};
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_diplo_decider(adm, fake_lock());
-	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
 	};
 	static char_id_t generate_instance(IN(administration) adm, char_id_t actor) noexcept {
 		return get_random_threat(char_id_t(head_of_state(adm)), fake_lock());
@@ -197,9 +164,6 @@ public:
 		}
 		return false;
 	};
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor, char_id_t against) noexcept {
-		return false;
-	};
 };
 
 ADM_ACTIVITY_CLASS(adm_a_non_aggression_pact) {
@@ -209,9 +173,6 @@ public:
 	};
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_diplo_decider(adm, fake_lock());
-	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
 	};
 	static char_id_t generate_instance(IN(administration) adm, char_id_t actor) noexcept {
 		return get_random_threat(head_of_state(adm), fake_lock());
@@ -227,9 +188,6 @@ public:
 		}
 		return false;
 	};
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor, char_id_t with) noexcept {
-		return false;
-	};
 };
 
 ADM_ACTIVITY_CLASS(adm_a_cancel_pact) {
@@ -239,9 +197,6 @@ public:
 	};
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_diplo_decider(adm, fake_lock());
-	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
 	};
 	static pact_id_t generate_instance(IN(administration) adm, char_id_t actor) noexcept {
 		small_vector<pact_id_t, 8, concurrent_allocator<pact_id_t>> pctlst;
@@ -262,9 +217,6 @@ public:
 		}
 		return false;
 	};
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor, pact_id_t p) noexcept {
-		return false;
-	};
 };
 
 ADM_ACTIVITY_CLASS(adm_a_hostile_plot) {
@@ -280,9 +232,6 @@ public:
 	};
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_spy_decider(adm, fake_lock());
-	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
 	};
 	static instance generate_instance(IN(administration) adm, char_id_t actor) noexcept {
 		return instance(get_random_threat(head_of_state(adm), fake_lock()), (global_store.get_fast_int() % 2 == 0) ? PLOT_AGGRESSION : PLOT_TYRANNY);
@@ -302,9 +251,6 @@ public:
 		global::actionlist.add_new<setup_spy_mission>(actor, ad_id, i.against, char_id_t(), i.type);
 		return true;
 	};
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor, IN(instance) i) noexcept {
-		return false;
-	};
 };
 
 ADM_ACTIVITY_CLASS(adm_a_enemy_plot) {
@@ -314,9 +260,6 @@ public:
 	}
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_spy_decider(adm, fake_lock());
-	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
 	};
 	static char_id_t generate_instance(IN(administration) adm, char_id_t actor) noexcept {
 		return get_random_hated_or_enemy(actor, fake_lock());
@@ -336,9 +279,6 @@ public:
 		global::actionlist.add_new<setup_spy_mission>(actor, ad_id, target, char_id_t(), static_cast<unsigned char>(PLOT_DISHONORERABLE));
 		return true;
 	}
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor, char_id_t target) noexcept {
-		return false;
-	};
 };
 
 ADM_ACTIVITY_CLASS(adm_a_host_mass_event) {
@@ -350,9 +290,6 @@ public:
 	};
 	static char_id_t get_actor(IN(administration) adm) noexcept {
 		return get_local_decider(adm, fake_lock());
-	};
-	static char_id_t get_voter(IN(administration) adm) noexcept {
-		return char_id_t();
 	};
 	static unsigned int generate_instance(IN(administration) adm, char_id_t actor) noexcept {
 		static const unsigned int types[3] = {EVENT_FEAST, EVENT_THEATER, EVENT_TOURNAMENT};
@@ -370,9 +307,6 @@ public:
 			}
 			return false;
 		});
-	};
-	static bool vote_on_activity(IN(administration) adm, char_id_t actor, unsigned int type) noexcept {
-		return false;
 	};
 };
 

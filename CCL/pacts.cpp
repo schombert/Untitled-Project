@@ -249,7 +249,7 @@ bool extend_pact_popup(IN(pact_data) pact) noexcept {
 }
 
 void pact_tribute_notpaid_popup(IN(pact_data) pact, char_id_t breaker, IN(g_lock) l) noexcept {
-	message_popup(global::uicontainer, get_simple_string(TX_PACT_ENDED), [&pact, &l, breaker](const std::shared_ptr<uiScrollView>& sv) {
+	message_popup( get_simple_string(TX_PACT_ENDED), [&pact, &l, breaker](const std::shared_ptr<uiElement>& sv) {
 		size_t param = breaker.value;
 		int y = create_tex_block(TX_PACT_TRIBUTE_EX, &param, 1, sv, 1, 1, sv->pos.width - 5, global::empty, global::standard_text) + 10;
 		pact_to_ui(1, y, sv, pact, l);
@@ -257,14 +257,14 @@ void pact_tribute_notpaid_popup(IN(pact_data) pact, char_id_t breaker, IN(g_lock
 }
 
 void pact_expired_popup(IN(pact_data) pact, IN(g_lock) l) noexcept {
-	message_popup(global::uicontainer, get_simple_string(TX_PACT_ENDED), [&pact, &l](const std::shared_ptr<uiScrollView>& sv) {
+	message_popup( get_simple_string(TX_PACT_ENDED), [&pact, &l](const std::shared_ptr<uiElement>& sv) {
 		int y = 0;
 		pact_to_ui(0, y, sv, pact, l);
 	});
 }
 
 void pact_entered_popup(IN(pact_data) pact, IN(g_lock) l) noexcept {
-	message_popup(global::uicontainer, get_simple_string(TX_PACT_CREATED), [&pact, &l](const std::shared_ptr<uiScrollView>& sv) {
+	message_popup( get_simple_string(TX_PACT_CREATED), [&pact, &l](const std::shared_ptr<uiElement>& sv) {
 		int y = 0;
 		pact_to_ui(0, y, sv, pact, l);
 	});
@@ -272,7 +272,7 @@ void pact_entered_popup(IN(pact_data) pact, IN(g_lock) l) noexcept {
 
 
 void pact_declined_popup(IN(pact_data) pact, IN(g_lock) l) noexcept {
-	message_popup(global::uicontainer, get_simple_string(TX_PACT_DECLINED), [&pact, &l](const std::shared_ptr<uiScrollView>& sv) {
+	message_popup(get_simple_string(TX_PACT_DECLINED), [&pact, &l](const std::shared_ptr<uiElement>& sv) {
 		sv->add_element<uiSimpleText>(5, 0, get_simple_string(TX_LONG_PACT_DECLINED), global::empty, global::standard_text);
 		int y = global::standard_text.csize + 2;
 		pact_to_ui(0, y, sv, pact, l);
