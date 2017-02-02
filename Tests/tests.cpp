@@ -11,6 +11,7 @@
 #include "traits.h"
 #include "relations.h"
 #include "fp.h"
+#include "..\\uigeneration\\fileparsing_v2.h"
 
 TEST(fp_tests, basic_tests) {
 	EXPECT_EQ(std_fp::from_double(1.5)*std_fp::from_int(2), std_fp::from_int(3));
@@ -466,6 +467,39 @@ TEST(i18n_test, i18n_test) {
 	
 	EXPECT_STREQ(TEXT("Call to arms"), get_simple_string(TX_L_CTOARMS).c_str());
 	EXPECT_STREQ(TEXT("Invitation"), get_simple_string(TX_L_INVITATION).c_str());
+}
+
+TEST(parse_v2, basic) {
+	std::vector<parse_option> results;
+	EXPECT_TRUE(parse_v2(L"fparse2_test.txt", results));
+
+	EXPECT_EQ(3, results.size());
+	EXPECT_STREQ("entry_1", results[0].node.first.get().c_str());
+	EXPECT_EQ(6, results[0].node.second.size());
+	EXPECT_STREQ("content 1", results[0].node.second[0].node.first.get().c_str());
+	EXPECT_EQ(0, results[0].node.second[0].node.second.size());
+	EXPECT_STREQ("content 2", results[0].node.second[1].node.first.get().c_str());
+	EXPECT_EQ(0, results[0].node.second[1].node.second.size());
+	EXPECT_STREQ("sub_1", results[0].node.second[2].node.first.get().c_str());
+	EXPECT_EQ(2, results[0].node.second[2].node.second.size());
+	EXPECT_STREQ("sv1", results[0].node.second[2].node.second[0].node.first.get().c_str());
+	EXPECT_EQ(0, results[0].node.second[2].node.second[0].node.second.size());
+	EXPECT_STREQ("sv3", results[0].node.second[2].node.second[1].node.first.get().c_str());
+	EXPECT_EQ(0, results[0].node.second[2].node.second[1].node.second.size());
+	EXPECT_STREQ("sub_2", results[0].node.second[3].node.first.get().c_str());
+	EXPECT_EQ(0, results[0].node.second[3].node.second.size());
+	EXPECT_STREQ("sub_3", results[0].node.second[4].node.first.get().c_str());
+	EXPECT_EQ(1, results[0].node.second[4].node.second.size());
+	EXPECT_STREQ("sv2", results[0].node.second[4].node.second[0].node.first.get().c_str());
+	EXPECT_EQ(0, results[0].node.second[4].node.second[0].node.second.size());
+	EXPECT_STREQ("content3", results[0].node.second[5].node.first.get().c_str());
+	EXPECT_EQ(0, results[0].node.second[5].node.second.size());
+	EXPECT_STREQ("entry_2", results[1].node.first.get().c_str());
+	EXPECT_EQ(1, results[1].node.second.size());
+	EXPECT_STREQ("content 4", results[1].node.second[0].node.first.get().c_str());
+	EXPECT_EQ(0, results[1].node.second[0].node.second.size());
+	EXPECT_STREQ("top content", results[2].node.first.get().c_str());
+	EXPECT_EQ(0, results[2].node.second.size());
 }
 
 struct struct_aggl {

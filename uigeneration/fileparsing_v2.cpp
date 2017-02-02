@@ -82,14 +82,14 @@ std::string parse_remaining(char* fdata, size_t &offset, size_t file_size) {
 
 std::vector<parse_option>* enter_identifier(parse_ident id, INOUT(std::vector<parse_option>) c) {
 	if (!(id == parse_ident(""))) {
-		for (IN(auto) opt : c) {
-			if (opt.node && opt.node->first == id)
-				return &(opt.node->second);
+		for (INOUT(auto) opt : c) {
+			if (opt.node.first == id)
+				return &(opt.node.second);
 		}
 	}
 
 	c.emplace_back(id);
-	return &(c.back().node->second);
+	return &(c.back().node.second);
 }
 
 void add_to_subnode(char* fdata, size_t &offset, size_t file_size, INOUT(std::vector<std::pair<int, std::vector<parse_option>*>>) stack) {
@@ -115,7 +115,7 @@ void add_to_subnode(char* fdata, size_t &offset, size_t file_size, INOUT(std::ve
 	std::string righthand = parse_remaining(fdata, offset, file_size);
 
 	if (righthand.length() > 0)
-		stack.back().second->emplace_back(righthand);
+		stack.back().second->emplace_back(parse_ident(righthand));
 }
 
 void parse_line(char* fdata, size_t &offset, size_t file_size, INOUT(std::vector<std::pair<int, std::vector<parse_option>*>>) stack) {
@@ -135,7 +135,7 @@ void parse_string(char* fdata, size_t &offset, size_t file_size, INOUT(std::vect
 		parse_line(fdata, offset, file_size, stack);
 }
 
-void parse_v2(TCHAR* filename, INOUT(std::vector<parse_option>) results) {
+bool parse_v2(TCHAR* filename, INOUT(std::vector<parse_option>) results) {
 	HANDLE hfile = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
 
 	if (hfile != INVALID_HANDLE_VALUE) {
@@ -163,8 +163,10 @@ void parse_v2(TCHAR* filename, INOUT(std::vector<parse_option>) results) {
 		parse_string(fdata, offset, sz.LowPart, results);
 
 		delete[] fdata;
+		return true;
 	} else {
 		OutputDebugStringA("ERROR CANNOT FIND FILE\r\n");
 		OutputDebugString(filename); OutputDebugStringA("\r\n");
+		return false;
 	}
 }

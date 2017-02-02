@@ -2358,6 +2358,44 @@ public:
 	}
 };
 
+template<typename T, size_t sz>
+void shuffle(IN_P(T) dest) noexcept {
+	class _shuffle {
+	public:
+		template<size_t n>
+		static void apply(IN_P(T) dest) noexcept {
+			std::swap(dest[0], dest[random_store::get_fast_int() % sz]);
+			apply<n - 1>(dest + 1);
+		}
+		template<>
+		static void apply<1>(IN_P(T) dest) noexcept {
+
+		}
+	};
+	_shuffle::apply(dest);
+}
+
+template<typename T, size_t sz>
+void shuffle(const IN_P(T) source, IN_P(T) dest) noexcept {
+	memcpy(dest, source, sz * sizeof(T));
+	shuffle<sz>(dest);
+}
+
+template<typename T>
+void shuffle(T* dest, size_t sz) noexcept {
+	while (sz > 1) {
+		std::swap(dest[0], dest[random_store::get_fast_int() % sz]);
+		++dest;
+		--sz;
+	}
+}
+
+template<typename T>
+void shuffle(const IN_P(T) source, T* dest, size_t sz) noexcept {
+	memcpy(dest, source, sz * sizeof(T));
+	shuffle(dest, sz);
+}
+
 template<typename MEMBER_TYPE, typename EXEC>
 using actionable_list_class = actionable_list_class_t<MEMBER_TYPE, std::false_type, EXEC>;
 

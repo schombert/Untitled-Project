@@ -160,13 +160,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\uigeneration\fileparsing_v2.cpp" />
+    <ClCompile Include="nlp.cpp" />
     <ClCompile Include="tests.cpp" />
     <ClCompile Include="test_helpers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\CCL\globalhelpers.h" />
     <ClInclude Include="..\CCL\i18n.h" />
+    <ClInclude Include="..\uigeneration\fileparsing_v2.h" />
     <ClInclude Include="fp.h" />
+    <ClInclude Include="nlp.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="test_helpers.h" />
   </ItemGroup>

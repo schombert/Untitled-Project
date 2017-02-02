@@ -26,13 +26,14 @@ public:
 
 class parse_option {
 public:
-	std::unique_ptr<parse_contents> content;
-	std::unique_ptr<std::pair<parse_ident, std::vector<parse_option>>> node;
+	//std::unique_ptr<parse_contents> content;
+	//std::unique_ptr<std::pair<parse_ident, std::vector<parse_option>>> node;
+	std::pair<parse_ident, std::vector<parse_option>> node;
 
-	parse_option(IN(std::string) s) : content(std::make_unique<parse_contents>(s)) {};
-	parse_option(parse_ident id) : node(std::make_unique<std::pair<parse_ident, std::vector<parse_option>>>(id, std::vector<parse_option>())) {};
+	//parse_option(IN(std::string) s) : content(std::make_unique<parse_contents>(s)) {};
+	parse_option(parse_ident id) : node(id, std::vector<parse_option>()) {};
 	parse_option() {};
 };
 
 
-void parse_v2(TCHAR* filename, INOUT(std::vector<parse_option>) results);
+bool parse_v2(TCHAR* filename, INOUT(std::vector<parse_option>) results);

@@ -9,7 +9,7 @@
       <AdditionalLibraryDirectories>D:\documents\VCPP\CCL\x64\Release;D:\documents\VCPP\glew-1.13.0\lib\Release\x64;D:\documents\VCPP\SFML-master\extlibs\libs-msvc\x64;D:\documents\VCPP\CCL\CCL\lib;D:\documents\VCPP\SFML-master\bin\x64\Release;D:\documents\VCPP\SFML-master\bin\lib64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>D:\documents\VCPP\glm;D:\documents\VCPP\glew-1.13.0\include;F:\boost_1_61_0;D:\documents\VCPP\gtest-1.7.0\include;D:\documents\VCPP\SFML-master\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\documents\VCPP\Eigen;D:\documents\VCPP\glm;D:\documents\VCPP\glew-1.13.0\include;F:\boost_1_61_0;D:\documents\VCPP\gtest-1.7.0\include;D:\documents\VCPP\SFML-master\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CallingConvention>VectorCall</CallingConvention>
     </ClCompile>
   </ItemDefinitionGroup>

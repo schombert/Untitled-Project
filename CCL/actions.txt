@@ -1,0 +1,302 @@
+#
+# --- tasks ---
+#
+
+collect_taxes:
+	acts_on:
+		populace # how it is affected by loyalty & ideology
+	associated_right: taxation
+	assets:
+		magistrates
+	actions:
+		use_force:
+			replace_with: collect_taxes_by_force
+			effects:
+				loyalty_penalty
+				legitimacy_penalty
+
+collect_taxes_by_force:
+	acts_on: populace
+	associated_right: taxation
+	assets:
+		troops
+
+raise_levy:
+	acts_on: populace
+	associated_right: levy
+	assets:
+		wealth
+
+conduct_census:
+	acts_on: populace
+	associated_right: taxation
+	assets: magistrates
+	effect: increase_organization
+
+eliminate_bandits:
+	acts_on:
+	associated_right: justice
+	assets: troops
+
+maintain_roads:
+	acts_on:
+	associated_right:
+	assets: wealth
+
+#
+# --- conflicts ---
+#
+
+check_vassal:
+	acts_on: subject
+	right_in_question: justice
+	assets: legal_power
+
+override_vassal:
+	acts_on: subject
+	right_in_question: legislation
+	assets: legal_power
+
+#
+# --- asset classes ---
+#
+
+wealth:
+	political: 0.5
+	intrigue: 0.5
+
+spy:
+	intrigue: 1.0
+
+influence:
+	political: 1.0
+	social: 0.2
+
+legislative_power:
+	legislative: 5.0
+
+judicial_power:
+	judicial: 5.0
+
+administrative_power
+
+religious_authority
+
+#
+# --- action classes ---
+#
+
+war:
+	class: military
+
+civial_war:
+
+raid:
+
+train_troops:
+
+reform_military:
+
+seize_power:
+	class: political
+
+improve_position:
+	class:
+		political
+		legislative
+	completion: adjust_position
+	traits:
+		positive
+
+pragmatic_argument:
+	class:
+		social
+
+emotional_argument:
+
+ethical_argument:
+
+selfish_argument:
+
+religious_argument:
+
+appeal_to_tradition:
+
+sub_improve_standing:
+
+sub_improve_reputation:
+
+sub_embezzle:
+
+foreign_treaty:
+	class: political
+	completion: approve_treaty
+
+approve_treaty:
+	class:
+		political
+		legislative
+	type:
+		continuation
+		dual_target
+	extra_options:
+		oppose_treaty
+	completion: form_agreememt
+
+limit_power:
+	class:
+		political
+		legislative
+	type: targeted
+	completion: limit_power_of
+	traits:
+		positive
+
+centralize_power:
+	class:
+		political
+		legislative
+	inverse: decentralize_power
+	completion: centralize_power
+	traits:
+		positive
+		subjects:
+			negative
+
+disrupt_government:
+	class:
+		political
+		legislative
+	type: organizational
+	completion: disrupt_government
+	traits:
+		negative
+
+negotiate_subjects_power: # chosen or auto on succession
+
+negotiate_trade_deal: # foreign
+
+negotiate_economic_priviliages: # local
+
+allocate_budget:
+	type:
+		automatic
+
+public_prestige_project:
+
+judge_crime:
+
+local_investment:
+
+reduce_corruption:
+	type: automatic
+	contest_type: timed
+	class:
+		administrative
+		political
+
+reorganize_officials:
+	type: automatic
+	contest_type: timed
+	class:
+		administrative
+		political
+
+conduct_census:
+	type: automatic
+	contest_type:
+		timed
+		unopposed
+	class: administrative
+	conclusion: improve_revenue
+
+survey_land:
+	type: automatic
+	contest_type:
+		timed
+		unopposed
+	class: administrative
+	conclusion: improve_organization
+
+revise_minor_laws:
+
+revise_minor_taxes:
+
+educate_child:
+	
+arbitrate_dispute:
+	type: automatic
+
+
+manage_inheritance:
+	type:
+	class:
+		political
+		social
+	contest_type:
+		timed
+	options:
+		balanced
+		traditional
+		enumerate_heirs
+
+remove_incompetant_official:
+
+persuasion:
+	class: social
+	type: targeted
+	for:
+		not_involved
+		opponents
+	success: add_or_remove_target
+	bias:
+		parent_appeal
+
+blackmail:
+	class: intrigue
+	type: targeted
+	success: add_or_remove_target
+	for:
+		not_involved
+		opponents
+	traits:
+		dishonorable
+	multiplier:
+		base: 0.0
+		target:
+			secret: 1.0
+	bias:
+		parent_appeal
+		
+
+bribe:
+	class: diplomatic
+	type: targeted
+	for:
+		not_involved
+		opponents
+	success: add_or_remove_target
+	traits:
+		dishonorable
+	bias:
+		parent_appeal
+	assets:
+		wealth: 1.0
+		target:
+			greed: 1.0
+			wealth: -1.0
+
+steal_state_secrets: # increases influence in foreign power
+
+assasinate:
+	class: intrigue
+	type: targeted
+	for:
+		opponents
+	success: kill_target
+	failure: crime
+	stall: assaination_consequences
+	assets:
+		spies: 1.0
+		wealth: 0.2
+		intrigue_skill: 1.0
