@@ -278,7 +278,9 @@ struct limiting_value {
 };
 
 template<typename function_class, typename RVT>
-std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) direction, IN(limiting_value) a, IN(limiting_value) b, IN(limiting_value) c, const value_type φ_zero, const value_type ϵ_k, const value_type θ) {
+std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) direction, IN(limiting_value) a, IN(limiting_value) b, IN(limiting_value) c, const value_type φ_zero, const value_type ϵ_k) {
+	constexpr value_type θ = 0.5; // range (0, 1) used in the update rules when the potential intervals [a,c] or [c, b] violate the opposite slope condition
+	
 	if (c.at < a.at || c.at > b.at)
 		return std::make_pair(a, b);
 	if(c.φ_prime >= 0.0)
@@ -291,7 +293,7 @@ std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(functio
 
 	while (true) {
 		const auto d_at = (1.0 - θ) * (a_temp.at + θ * b_temp.at);
-		const limiting_value d(d, function.evaluate_at_with_derivative(variable_mapping, d, direction));
+		const limiting_value d(d_at, function.evaluate_at_with_derivative(variable_mapping, d_at, direction));
 
 		if (d.φ_prime >= 0) 
 			return std::make_pair(a_temp, d);
@@ -303,62 +305,62 @@ std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(functio
 }
 
 value_type secant(IN(limiting_value) a, IN(limiting_value) b) {
-	return (a.at * b.φ_prime - b.at * a.φ_prime) / (b.φ_prime - a.φ_prime);
+	return b.φ_prime != a.φ_prime ? (a.at * b.φ_prime - b.at * a.φ_prime) / (b.φ_prime - a.φ_prime) : max_value<value_type>::value;
 }
 
 template<typename function_class, typename RVT>
-std::pair<limiting_value, limiting_value> hager_zhang_secant_step(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) direction, IN(limiting_value) a, IN(limiting_value) b, const value_type φ_zero, const value_type ϵ_k, const value_type θ) {
+std::pair<limiting_value, limiting_value> hager_zhang_secant_step(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) direction, IN(limiting_value) a, IN(limiting_value) b, const value_type φ_zero, const value_type ϵ_k) {
 	const auto secant_at = secant(a, b);
 	const limiting_value c(secant_at, function.evaluate_at_with_derivative(variable_mapping, secant_at, direction));
-	const std::pair<limiting_value, limiting_value> intermediate_interval = hager_zhang_interval_update(function, variable_mapping, direction, a, b, c, φ_zero, ϵ_k, θ);
+	const auto intermediate_interval = hager_zhang_interval_update(function, variable_mapping, direction, a, b, c, φ_zero, ϵ_k);
 
 	if (c.at != intermediate_interval.first.at && c.at != intermediate_interval.second.at) {
 		return intermediate_interval;
 	} else {
 		const auto c_new_at = (c.at == intermediate_interval.first.at) ? secant(a, intermediate_interval.first) : secant(b, intermediate_interval.second);
 		const limiting_value c_new(c_new_at, function.evaluate_at_with_derivative(variable_mapping, c_new_at, direction));
-		return hager_zhang_interval_update(function, variable_mapping, direction, a, b, c_new, φ_zero, ϵ_k, θ);
+		return hager_zhang_interval_update(function, variable_mapping, direction, a, b, c_new, φ_zero, ϵ_k);
 	}
 }
 
-bool satisfies_hager_zhang_conditions(IN(limiting_value) v, const value_type φ_zero, const value_type φ_prime_zero, const value_type δ, const value_type σ, const value_type ϵ_k) {
-	return (v.φ - φ_zero <= δ * v.at * v.φ_prime && v.φ_prime >= φ_prime_zero * σ)   // wolfe condition 2.2: f(x_k + α_k * d_k ) − f(x _k) ≤ δ * α_k * g_k * d_k &&  wolfe condition 2.3: g_k+1*d_k >= σ*g_k*d_k
-		|| ((2.0 * δ - 1.0) * φ_prime_zero >= v.φ_prime && v.φ_prime >= σ * φ_prime_zero && v.φ <= φ_zero * ϵ_k); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
+template<int δ_times_1000, int σ_times_1000>
+bool satisfies_hager_zhang_conditions(IN(limiting_value) v, const value_type φ_zero, const value_type φ_prime_zero, const value_type ϵ_k) {
+	constexpr value_type δ = static_cast<value_type>(δ_times_1000) / value_type(1000.0); // range (0, 0.5)  used in the Wolfe conditions
+	constexpr value_type σ = static_cast<value_type>(σ_times_1000) / value_type(1000.0); // range [δ, 1)  used in the Wolfe conditions
+
+	static_assert(σ_times_1000 > δ_times_1000, "σ must be > than δ");
+
+	return (v.φ - φ_zero <= δ * v.at * v.φ_prime && v.φ_prime >= σ * φ_prime_zero)   // wolfe condition 2.2: f(x_k + α_k * d_k ) − f(x _k) ≤ δ * α_k * g_k * d_k &&  wolfe condition 2.3: g_k+1*d_k >= σ*g_k*d_k
+		|| ((2.0 * δ - 1.0) * φ_prime_zero >= v.φ_prime && v.φ_prime >= σ * φ_prime_zero && v.φ <= φ_zero + ϵ_k); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
 }
 
 template<typename function_class, typename RVT>
 void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(RVT) direction) {
-	constexpr value_type δ = 0.1; // range (0, 0.5)  used in the Wolfe conditions
-	constexpr value_type σ = 0.9; // range [δ, 1)  used in the Wolfe conditions
+	
 	constexpr value_type ϵ = 0.000001; // range [0, inf) used in the approximate Wolfe conditions
-	constexpr value_type θ = 0.5; // range (0, 1) used in the update rules when the potential intervals [a,c] or [c, b] violate the opposite slope condition
 	constexpr value_type γ = 0.66; // range (0, 1) determines when a bisection step is performed
-	constexpr value_type η = 0.01; // range (0, inf) used in the lower bound for β
+	
+	// constexpr value_type η = 0.01; // range (0, inf) used in the lower bound for β
 
 	limiting_value a_k(0.0, function.evaluate_at_with_derivative(variable_mapping, 0.0, direction));
 	const auto φ_zero = a_k.φ;
 	const auto φ_prime_zero = a_k.φ_prime;
 	limiting_value b_k(max_lambda, function.evaluate_at_with_derivative(variable_mapping, max_lambda, direction));
 
-
 	do { 
 		ϵ_k = ϵ * abs(b_k.φ);
 
-		const auto interval = hager_zhang_secant_step(function, variable_mapping, direction, a_k, b_k, φ_zero, ϵ_k, θ);
+		const auto interval = hager_zhang_secant_step(function, variable_mapping, direction, a_k, b_k, φ_zero, ϵ_k);
 
 		if (interval.second.at - interval.first.at > γ * (b_k.at - a_k.at)) {
 			const auto c_val = (interval.first.at + interval.second.at) / 2.0;
 			const limiting_value c(c_val, function.evaluate_at_with_derivative(variable_mapping, c_val, direction));
-			const auto new_interval = hager_zhang_interval_update(function, variable_mapping, direction, interval.first, interval.second, c, φ_zero, ϵ_k, θ);
-
-			a_k = new_interval.first;
-			b_k = new_interval.second;
+			std::tie(a_k, b_k) = hager_zhang_interval_update(function, variable_mapping, direction, interval.first, interval.second, c, φ_zero, ϵ_k);
 		} else {
-			a_k = interval.first;
-			b_k = interval.second;
+			std::tie(a_k, b_k) = interval;
 		}
 
-	} while(!satisfies_hager_zhang_conditions(b_k, φ_zero, φ_prime_zero, δ, σ, ϵ_k)); // conditions not satisfied 
+	} while(!satisfies_hager_zhang_conditions<100,900>(b_k, φ_zero, φ_prime_zero, ϵ_k)); // conditions not satisfied 
 
 	const auto sz = variable_mapping.size();
 	for (size_t i = 0; i < sz; ++i) {
@@ -371,14 +373,14 @@ void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<v
 
 template<typename function_class, typename RVT>
 void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(RVT) direction) {
-	value_type phi_a0 = function.evaluate_at(variable_mapping, 0.0, direction);
-	value_type phi_derivitive_a0 = deriv;
+	value_type φ_a0 = function.evaluate_at(variable_mapping, 0.0, direction);
+	value_type φ_prime_a0 = deriv;
 
-	constexpr value_type slope_factor = 0.001;
+	constexpr value_type δ = 0.001;
 
-	auto phi_a = function.evaluate_at_with_derivative(variable_mapping, max_lambda, direction);
+	limiting_value a_k(max_lambda, function.evaluate_at_with_derivative(variable_mapping, max_lambda, direction));
 
-	if (phi_a.first <= phi_a0 + (slope_factor * max_lambda * phi_derivitive_a0)) {
+	if (a_k.φ - φ_a0 <= (δ * max_lambda * φ_prime_a0)) {
 		const auto sz = variable_mapping.size();
 		for (size_t i = 0; i < sz; ++i) {
 			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * max_lambda;
@@ -387,45 +389,46 @@ void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(
 		return;
 	}
 
-	value_type a_last = max_lambda;
-	auto phi_a_last = phi_a;
+	auto a_last = a_k;
 
 	//Quadratic interpolation
-	value_type a = std::min(-0.5 * phi_derivitive_a0 * max_lambda * max_lambda / (a_phi.first - phi_a0 - phi_derivitive_a0 * max_lambda), max_lambda);
-	phi_a = function.evaluate_at_with_derivative(variable_mapping, a, direction);
+	{
+		const value_type a_new_at = std::min(value_type (-0.5) * φ_prime_a0 * max_lambda * max_lambda / (a_k.φ - φ_a0 - φ_prime_a0 * max_lambda), max_lambda);
+		a_k = limiting_value(a_new_at, function.evaluate_at_with_derivative(variable_mapping, a_new_at, direction));
+	}
 
-	if (phi_a.first <= phi_a0 + (slope_factor * a * phi_derivitive_a0)) {
+	//v.φ - φ_zero <= δ * v.at * v.φ_prime
+	if (a_k.φ - φ_a0 <= (δ * a_new * φ_prime_a0)) {
 		const auto sz = variable_mapping.size();
 		for (size_t i = 0; i < sz; ++i) {
-			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a;
+			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
 		}
 		return;
 	}
 
 	while (true) {
-		const value_type d_1 = phi_a_last.second + phi_a.second + 3 * phi_a_last.first - phi_a.first / (a_last - a);
-		const value_type d_2 = sqrt(d_1*d_1 - phi_a_last.second*phi_a.second);
+		const value_type d_1 = a_last.φ_prime + a_k.φ_prime - value_type(3) * (a_last.φ - a_k.φ) / (a_last.at - a_k.at);
+		const value_type d_2 = (a_k.at > a_last.at) ? sqrt(d_1*d_1 - a_last.φ_prime * a_k.φ_prime) : -sqrt(d_1*d_1 - a_last.φ_prime * a_k.φ_prime);
 
-		value_type a_new = a - (a - a_last) * ((phi_a.second + d_2 - d_1) / (phi_a.second - phi_a_last.second + 2 * d_2));
-		auto phi_a_new = function.evaluate_at_with_derivative(variable_mapping, a_new, direction);
+		const value_type a_new_at = a_k.at - (a_k.at - a_last.at) * ((a_k.φ_prime + d_2 - d_1) / (a_k.φ_prime - a_last.φ_prime + value_type(2) * d_2));
+		const auto a_new = limiting_value(a_new_at, function.evaluate_at_with_derivative(variable_mapping, a_new_at, direction));
 
-		if (phi_a_new.first <= phi_a0 + (slope_factor * a * phi_derivitive_a0)) {
+		if (a_new.φ - φ_a0 <= (δ * a_k.at * φ_prime_a0)) {
 			const auto sz = variable_mapping.size();
 			for (size_t i = 0; i < sz; ++i) {
-				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_new;
+				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_new_at;
 			}
 			return;
 		}
 
-		if (a - a_new > 0.5 * a || 1.0 - a_new / a < 0.9) {
-			a_new = 0.5 * a;
-			phi_a_new = function.evaluate_at_with_derivative(variable_mapping, a_new, direction);
+		a_last = a_k;
+		if (a_k.at - a_new_at > 0.9 * a_k.at || a_k.at - a_new_at < 0.1 * a_k.at) {
+			const value_type a_new_at_b = 0.5 * a_k.at;
+			a_k = limiting_value(a_new_at_b, function.evaluate_at_with_derivative(variable_mapping, a_new_at_b, direction));
+		} else {
+			a_k = a_new;
 		}
 
-		a_last = a;
-		phi_a_last = phi_a;
-		a = a_new;
-		phi_a = phi_a_new;
 	}
 }
 
@@ -528,9 +531,15 @@ void m_algo(IN(function_class) function, INOUT(std::vector<var_mapping>) variabl
 	const auto full = coeff.cols();
 	const auto remainder = b_size - full;
 
+	constexpr value_type ϵ = 0.000001; // range [0, inf) used in the approximate Wolfe conditions
+
 	Eigen::Map<e_row_vector, Eigen::Aligned> gradient((value_type*)_alloca(full * sizeof(value_type)), full);
 	Eigen::Map<e_row_vector, Eigen::Aligned> direction((value_type*)_alloca(full * sizeof(value_type)), full);
 	Eigen::Map<e_row_vector, Eigen::Aligned> reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+
+#ifndef SAFETY_OFF
+	size_t iteration_count = 0;
+#endif
 
 	//inside iteration
 	do {
@@ -539,7 +548,6 @@ void m_algo(IN(function_class) function, INOUT(std::vector<var_mapping>) variabl
 		gradient.noalias() = e_row_vector::Zero(full);
 		calculate_simple_gradient(function, variable_mapping, gradient);
 
-
 		reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
 		caclulate_reduced_n_gradient(coeff, gradient, n_result);
 
@@ -547,8 +555,13 @@ void m_algo(IN(function_class) function, INOUT(std::vector<var_mapping>) variabl
 		calcuate_n_direction_mokhtar(coeff, variable_mapping, reduced_n_gradient, direction);
 		calcuate_b_direction(coeff, direction);
 
+		// test for satisfaction
+		if (direction.squaredNorm() <= ϵ*ϵ)
+			break;
+
 		// perform line search, update solution
 		const auto lm_max = max_lambda(variable_mapping, direction);
+
 #ifndef SAFETY_OFF
 		if (lm_max.second == -1)
 			abort();
@@ -556,7 +569,10 @@ void m_algo(IN(function_class) function, INOUT(std::vector<var_mapping>) variabl
 		const value_type m = (gradient * direction.transpose())(0,0);
 		upate_with_backtrack_ls(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
 
-		// test for satisfaction or iterate
+#ifndef SAFETY_OFF
+		if (++iteration_count > 100)
+			abort();
+#endif
 	} while (true);
 }
 
