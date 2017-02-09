@@ -1,96 +1,90 @@
 ﻿#include "globalhelpers.h"
 #include "nlp.h"
 
-#ifdef SAFETY_OFF
-#define EIGEN_NO_DEBUG
-#else
-#define EIGEN_NO_MALLOC
-#endif
-
-#define EIGEN_MPL2_ONLY
-
-#include "Eigen"
-
-
-using value_type = float;
-using e_vector = Eigen::Matrix<value_type, Eigen::Dynamic, 1>;
-using e_row_vector = Eigen::Matrix<value_type, 1, Eigen::Dynamic>;
-using e_matrix = Eigen::Matrix<value_type, Eigen::Dynamic, Eigen::Dynamic>;
-
-template<typename VT, typename MT>
-void vector_times_ut_inverse(IN(VT) vector, IN(MT) coeff, INOUT(VT) result) {
-#ifndef SAFETY_OFF
-	if (!result.isZero()) {
-		abort(); // result must start zeroed out
-	}
-#endif
+template<typename VT>
+void _vector_times_ut_inverse(IN(VT) vector, IN(matrix_type) coeff, INOUT(rvector_type) result) { // result must be zeroed prior to call
 	const auto sz = coeff.rows();
 	for (Eigen::Index i = 0; i < sz; ++i) {
 		result(i) = (vector(i) - (result * coeff.col(i))(0, 0)) / (coeff(i, i));
 	}
 }
 
-template<typename VT, typename MT>
-void ut_inverse_times_vector(IN(MT) coeff, IN(VT) vector, INOUT(VT) result) {
-#ifndef SAFETY_OFF
-	if (!result.isZero()) {
-		abort(); // result must start zeroed out
-	}
-#endif
+void vector_times_ut_inverse(IN(rvector_type) vector, IN(matrix_type) coeff, INOUT(rvector_type) result) { // result must be zeroed prior to call
+	_vector_times_ut_inverse(vector, coeff, result);
+}
+
+void ut_inverse_times_vector(IN(matrix_type) coeff, IN(vector_type) vector, INOUT(vector_type) result) { // result must be zeroed prior to call
 	const auto sz = coeff.rows();
 	for (Eigen::Index i = sz - 1; i >= 0; --i) {
 		result(i) = (vector(i) - (coeff.row(i).head(sz) * result)(0, 0)) / (coeff(i, i));
 	}
 }
 
-template<typename RVT, typename MT>
-void caclulate_reduced_n_gradient(IN(MT) coeff, IN(RVT) gradient, INOUT(RVT) n_result) {
-	const auto rows = coeff.rows();
-	const auto remainder = coeff.cols() - rows;
-	
-	Eigen::Map<e_vector, Eigen::Aligned> intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
+template<typename VT>
+void _vector_times_LU_inverse(IN(VT) vector, IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu_decomposition, INOUT(rvector_type) result) {
+	//result.noalias() = (lu_decomposition.transpose().solve(vector.transpose())).transpose();
+	result.transpose() = lu_decomposition.transpose().solve(vector.transpose());
+}
+
+void vector_times_LU_inverse(IN(rvector_type) vector, IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu_decomposition, INOUT(rvector_type) result) {
+	_vector_times_LU_inverse(vector, lu_decomposition, result);
+}
+
+void LU_inverse_times_vector(IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu_decomposition, IN(vector_type) vector, INOUT(vector_type) result) {
+	result.noalias() = lu_decomposition.solve(vector);
+}
+
+void caclulate_reduced_n_gradient_ut(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, IN(rvector_type) gradient, INOUT(rvector_type) n_result) {
+	rvector_type intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
 	intermediate.noalias() = Eigen::VectorXf::Zero(rows);
 
-	vector_times_ut_inverse(gradient.head(rows), coeff, intermediate);
+	_vector_times_ut_inverse(gradient.head(rows), coeff, intermediate);
 	n_result.noalias() = gradient.tail(remainder) - (intermediate * coeff.rightCols(coeff.cols() - rows));
 }
 
-template<typename VT, typename MT>
-void calcuate_b_direction(IN(MT) coeff, INOUT(VT) direction) {
-	const auto rows = coeff.rows();
-	const auto remainder = coeff.cols() - rows;
-
-	Eigen::Map<e_vector, Eigen::Aligned> n_times_d((value_type*)_alloca(rows * sizeof(value_type)), rows);
+void calcuate_b_direction_ut(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, INOUT(vector_type) direction) {
+	vector_type n_times_d((value_type*)_alloca(rows * sizeof(value_type)), rows);
 	n_times_d.noalias() = coeff.rightCols(remainder) * direction.tail(remainder);
 
-	Eigen::Map<e_vector, Eigen::Aligned> intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
+	vector_type intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
 	intermediate.noalias() = Eigen::VectorXf::Zero(rows);
 
 	ut_inverse_times_vector(coeff, n_times_d, intermediate);
 	direction.head(rows).noalias() = -intermediate;
 }
 
-struct var_mapping {
-	value_type current_value;
-	unsigned short mapped_index;
-	unsigned short rank;
-};
+void caclulate_reduced_n_gradient_LU(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu_decomposition, IN(rvector_type) gradient, INOUT(rvector_type) n_result) {
+	rvector_type intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
+	intermediate.noalias() = Eigen::VectorXf::Zero(rows);
 
-template<typename RVT, typename VT>
-void calcuate_n_direction_steepest(const Eigen::Index b_size, const Eigen::Index remainder, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) reduced_n_gradient, INOUT(VT) direction) {
+	_vector_times_LU_inverse(gradient.head(rows), lu_decomposition, intermediate);
+	n_result.noalias() = gradient.tail(remainder) - (intermediate * coeff.rightCols(coeff.cols() - rows));
+}
+
+void calcuate_b_direction_LU(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu_decomposition, INOUT(vector_type) direction) {
+	vector_type n_times_d((value_type*)_alloca(rows * sizeof(value_type)), rows);
+	n_times_d.noalias() = coeff.rightCols(remainder) * direction.tail(remainder);
+
+	vector_type intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
+	intermediate.noalias() = Eigen::VectorXf::Zero(rows);
+
+	LU_inverse_times_vector(lu_decomposition, n_times_d, intermediate);
+	direction.head(rows).noalias() = -intermediate;
+}
+
+void calcuate_n_direction_steepest(const Eigen::Index b_size, const Eigen::Index remainder, IN(std::vector<var_mapping>) variable_mapping, IN(rvector_type) reduced_n_gradient, INOUT(vector_type) direction) {
 	direction.tail(remainder).noalias() = -(reduced_n_gradient.transpose());
 
 	const auto sz = variable_mapping.size();
 	for (size_t i = 0; i < sz; ++i) {
 		const auto mi = variable_mapping[i].mapped_index;
-		if (n_direction(mi) < value_type(0.0) && variable_mapping[i].current_value == value_type(0.0)) {
+		if (direction(mi) < value_type(0.0) && variable_mapping[i].current_value == value_type(0.0)) {
 			direction(mi) = value_type(0.0);
 		}
 	}
 }
 
-template<typename RVT, typename VT>
-void calcuate_n_direction_mokhtar(const Eigen::Index b_size, const Eigen::Index remainder, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) reduced_n_gradient, INOUT(VT) direction) {
+void calcuate_n_direction_mokhtar(const Eigen::Index b_size, const Eigen::Index remainder, IN(std::vector<var_mapping>) variable_mapping, IN(rvector_type) reduced_n_gradient, INOUT(vector_type) direction) {
 	direction.tail(remainder).noalias() = -(reduced_n_gradient.transpose());
 
 	const auto sz = variable_mapping.size();
@@ -102,96 +96,38 @@ void calcuate_n_direction_mokhtar(const Eigen::Index b_size, const Eigen::Index 
 	}
 }
 
-template<typename function_class, typename RVT>
-void calculate_raw_gradient(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(RVT) gradient) {
-	function.get_raw_gradient_at(variable_mapping, gradient);
-}
+using cg_function_type = value_type(*)(IN(rvector_type), IN(rvector_type), IN(rvector_type));
 
-template<typename function_class, typename RVT>
-void calculate_simple_gradient(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(RVT) gradient) {
-	const auto sz = variable_mapping.size();
-	IN_P(float) gvals = (value_type*)_malloca(sizeof(value_type) * sz);
-
-	function.get_gradient_at(variable_mapping, gvals);
-
-	for (size_t i = 0; i < sz; ++i) {
-		const auto mi = variable_mapping[i].mapped_index;
-		gradient(mi) = gvals[i];
-	}
-
-	_freea(gvals);
-}
-
-template<typename RVT>
-using cg_function_type = value_type(*)(IN(RVT), IN(RVT), IN(RVT));
-
-template<typename RVT>
-value_type cg_HS(IN(RVT) current_gradient, IN(RVT) prev_gradient, IN(RVT) prev_cg) {
+value_type cg_hestenes_stiefel(IN(rvector_type) current_gradient, IN(rvector_type) prev_gradient, IN(rvector_type) prev_cg) {
 	return (current_gradient * (current_gradient - prev_gradient).transpose())(0, 0) / (-prev_cg * (current_gradient - prev_gradient).transpose())(0, 0);
 }
 
-template<typename RVT>
-value_type cg_HZ(IN(RVT) current_gradient, IN(RVT) prev_gradient, IN(RVT) prev_cg) {
-	constexpr value_type η = 0.01; // range (0, inf) used in the lower bound for β
+value_type cg_hager_zhang(IN(rvector_type) current_gradient, IN(rvector_type) prev_gradient, IN(rvector_type) prev_cg) {
+	constexpr value_type η = value_type(0.01); // range (0, inf) used in the lower bound for β
 
-	const auto dty = value_type(1.0) / (-prev_cg * (current_gradient - prev_gradient).transpose())(0, 0));
+	const auto dty = value_type(1.0) / ((-prev_cg * (current_gradient - prev_gradient).transpose())(0, 0));
 	const auto β = dty * ((current_gradient - prev_gradient - value_type(2.0) * (current_gradient - prev_gradient).squaredNorm() * dty * -prev_cg) * current_gradient.transpose())(0, 0);
 	return std::max(β, value_type (-1.0) / (prev_cg.norm() * std::min(η, prev_gradient.norm())));
 }
 
-template<typename RVT>
-value_type cg_PR(IN(RVT) current_gradient, IN(RVT) prev_gradient, IN(RVT) prev_cg) {
+value_type cg_polak_ribiere(IN(rvector_type) current_gradient, IN(rvector_type) prev_gradient, IN(rvector_type) prev_cg) {
 	return (current_gradient * (current_gradient - prev_gradient).transpose())(0, 0) / (prev_gradient.squaredNorm());
 }
 
-template<typename RVT>
-value_type cg_PR_plus(IN(RVT) current_gradient, IN(RVT) prev_gradient, IN(RVT) prev_cg) {
+value_type cg_polak_ribiere_plus(IN(rvector_type) current_gradient, IN(rvector_type) prev_gradient, IN(rvector_type) prev_cg) {
 	return std::max((current_gradient * (current_gradient - prev_gradient).transpose())(0, 0) / (prev_gradient.squaredNorm()), value_type(0.0));
 }
 
-template<typename RVT>
-value_type cg_PR(IN(RVT) current_gradient, IN(RVT) prev_gradient, IN(RVT) prev_cg) {
+value_type cg_fletcher_reeves(IN(rvector_type) current_gradient, IN(rvector_type) prev_gradient, IN(rvector_type) prev_cg) {
 	return (current_gradient.squaredNorm()) / (prev_gradient.squaredNorm());
 }
 
-template<typename RVT>
-using restart_conditions_type = bool(*)(size_t, size_t, IN(RVT), IN(RVT), IN(RVT));
-
-template<typename function_class, typename RVT, cg_function_type<RVT> cg_varient, restart_conditions_type<RVT> restart_test>
-bool calculate_cg_gradient(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, size_t restart_count, INOUT(RVT) previous_gvals, INOUT(RVT) prev_cg, INOUT(RVT) gradient) {
-	const auto sz = variable_mapping.size();
-	IN_P(value_type) gvals = (value_type*)_malloca(sizeof(value_type) * sz);
-
-	function.get_gradient_at(variable_mapping, gvals);
-	Eigen::Map<e_row_vector, Eigen::Aligned> c_gvals(gvals, sz);
-
-	Eigen::Map<e_row_vector, Eigen::Aligned> new_cg((value_type*)_alloca(sizeof(value_type) * sz), sz);
-	new_cg.noalias() = c_gvals + cg_varient(c_gvals, previous_gvals, prev_cg) * prev_cg;
-
-	//gradient = e_row_vector::Zero(sz);
-
-	for (size_t i = 0; i < sz; ++i) {
-		const auto mi = variable_mapping[i].mapped_index;
-		gradient(mi) = new_cg(i);
-	}
-
-	const bool restart = restart_test(restart_count, sz, prev_cg, previous_gvals, new_cg);
-
-	prev_cg.noalias() = new_cg;
-	previous_gvals.noalias() = c_gvals;
-
-	_freea(gvals);
-
-	return restart;
-}
-
-template<typename VT>
-std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable_mapping, INOUT(VT) direction) {
+std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable_mapping, INOUT(vector_type) direction) {
 	short index = -1;
 	value_type least = max_value<value_type>::value;
 
 	const auto sz = variable_mapping.size();
-	for (size_t i = 0; i < sz; ++sz) {
+	for (size_t i = 0; i < sz; ++i) {
 		const auto indx = variable_mapping[i].mapped_index;
 		if (direction(indx) < value_type(0.0)) {
 			const auto lm = -variable_mapping[i].current_value / direction(indx);
@@ -205,8 +141,8 @@ std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable
 	return std::make_pair(least, index);
 }
 
-template<typename replacement_selection, typename MT>
-void swap_base(INOUT(MT) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(std::vector<unsigned short>) rank_starts, const Eigen::Index to_replace) {
+template<typename replacement_selection>
+void swap_base(INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(std::vector<unsigned short>) rank_starts, const Eigen::Index to_replace) {
 	const auto first_of_rank = rank_starts[to_replace];
 	const auto last_of_rank = rank_starts[to_replace + 1];
 
@@ -223,8 +159,7 @@ void swap_base(INOUT(MT) coeff, INOUT(std::vector<var_mapping>) variable_mapping
 	variable_mapping[selected_replacement].mapped_index = to_replace;
 }
 
-template<typename MT>
-void maximize_basis(INOUT(MT) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(std::vector<unsigned short>) rank_starts) {
+void maximize_basis(INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(std::vector<unsigned short>) rank_starts) {
 	const auto last_rank = rank_starts.size() - 1;
 	unsigned short current_rank = 0;
 	unsigned short rank_end = rank_starts[1];
@@ -232,7 +167,7 @@ void maximize_basis(INOUT(MT) coeff, INOUT(std::vector<var_mapping>) variable_ma
 	value_type largest_value = value_type(0.0);
 	unsigned short basis = 0;
 
-	for (size_t current_position = 0; true; ++current_position) {
+	for (unsigned short current_position = 0; true; ++current_position) {
 		if (current_position == rank_end) {
 			if (largest != basis) {
 				const auto largest_index = variable_mapping[largest].mapped_index;
@@ -260,13 +195,64 @@ void maximize_basis(INOUT(MT) coeff, INOUT(std::vector<var_mapping>) variable_ma
 	}
 }
 
+bool zero_element_in_basis(const Eigen::Index basis_size, INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping) {
+	const auto sz = variable_mapping.size();
+	for (size_t i = 0; i < sz; ++i) {
+		if ((variable_mapping[i].current_value == value_type(0.0)) & (variable_mapping[i].mapped_index < basis_size)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool conditional_maximize_basis(const Eigen::Index basis_size, INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(std::vector<unsigned short>) rank_starts) {
+	const auto last_rank = rank_starts.size() - 1;
+	unsigned short current_rank = 0;
+	unsigned short rank_end = rank_starts[1];
+	unsigned short largest = 0;
+	value_type largest_value = value_type(0.0);
+	unsigned short basis = 0;
+
+
+	if (!zero_element_in_basis(basis_size, coeff, variable_mapping))
+		return false;
+
+	for (unsigned short current_position = 0; true; ++current_position) {
+		if (current_position == rank_end) {
+			if (largest != basis) {
+				const auto largest_index = variable_mapping[largest].mapped_index;
+				coeff.col(current_rank).swap(coeff.col(largest_index));
+				variable_mapping[largest].mapped_index = current_rank;
+				variable_mapping[basis].mapped_index = largest_index;
+			}
+
+			++current_rank;
+
+			if (current_rank >= last_rank)
+				break;
+
+			rank_end = rank_starts[current_rank + 1];
+			largest = current_position;
+			largest_value = value_type(0.0);
+		}
+		if (variable_mapping[current_position].mapped_index == current_rank) {
+			basis = current_position;
+		}
+		if (variable_mapping[current_position].current_value > largest_value) {
+			largest_value = variable_mapping[current_position].current_value;
+			largest = current_position;
+		}
+	}
+	return true;
+}
+
+
 class general_function {
 public:
-	template<typename RVT>
-	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(RVT) direction) const;
-	template<typename RVT>
-	std::pair<value_type, value_type> evaluate_at_with_derivative(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(RVT) direction) const;
-	void get_gradient_at(INOUT(std::vector<var_mapping>) variable_mapping, IN_P(value_type) gradient_out) const;
+	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(rvector_type) direction) const;
+	value_type gradient_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(rvector_type) direction) const;
+	std::pair<value_type, value_type> evaluate_at_with_derivative(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(rvector_type) direction) const;
+	void get_raw_gradient_at(INOUT(std::vector<var_mapping>) variable_mapping, IN_P(rvector_type) gradient_out) const;
 };
 
 struct limiting_value {
@@ -278,8 +264,8 @@ struct limiting_value {
 	limiting_value(value_type a, IN(std::pair<value_type, value_type>) b) : at(a), φ(b.first), φ_prime(b.second) {};
 };
 
-template<typename function_class, typename RVT>
-std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) direction, IN(limiting_value) a, IN(limiting_value) b, IN(limiting_value) c, const value_type φ_zero, const value_type ϵ_k) {
+template<typename function_class>
+std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(rvector_type) direction, IN(limiting_value) a, IN(limiting_value) b, IN(limiting_value) c, const value_type φ_zero, const value_type ϵ_k) {
 	constexpr value_type θ = value_type(0.5); // range (0, 1) used in the update rules when the potential intervals [a,c] or [c, b] violate the opposite slope condition
 	
 	if (c.at < a.at || c.at > b.at)
@@ -309,8 +295,8 @@ value_type secant(IN(limiting_value) a, IN(limiting_value) b) {
 	return b.φ_prime != a.φ_prime ? (a.at * b.φ_prime - b.at * a.φ_prime) / (b.φ_prime - a.φ_prime) : max_value<value_type>::value;
 }
 
-template<typename function_class, typename RVT>
-std::pair<limiting_value, limiting_value> hager_zhang_secant_step(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(RVT) direction, IN(limiting_value) a, IN(limiting_value) b, const value_type φ_zero, const value_type ϵ_k) {
+template<typename function_class>
+std::pair<limiting_value, limiting_value> hager_zhang_secant_step(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(rvector_type) direction, IN(limiting_value) a, IN(limiting_value) b, const value_type φ_zero, const value_type ϵ_k) {
 	const auto secant_at = secant(a, b);
 	const limiting_value c(secant_at, function.evaluate_at_with_derivative(variable_mapping, secant_at, direction));
 	const auto intermediate_interval = hager_zhang_interval_update(function, variable_mapping, direction, a, b, c, φ_zero, ϵ_k);
@@ -329,14 +315,14 @@ bool satisfies_hager_zhang_conditions(IN(limiting_value) v, const value_type φ_
 	constexpr value_type δ = static_cast<value_type>(δ_times_1000) / value_type(1000.0); // range (0, 0.5)  used in the Wolfe conditions
 	constexpr value_type σ = static_cast<value_type>(σ_times_1000) / value_type(1000.0); // range [δ, 1)  used in the Wolfe conditions
 
-	static_assert(σ_times_1000 > δ_times_1000, "σ must be > than δ");
+	static_assert(σ_times_1000 > δ_times_1000, L"σ must be > than δ");
 
 	return (v.φ - φ_zero <= δ * v.at * v.φ_prime && v.φ_prime >= σ * φ_prime_zero)   // wolfe condition 2.2: f(x_k + α_k * d_k ) − f(x _k) ≤ δ * α_k * g_k * d_k &&  wolfe condition 2.3: g_k+1*d_k >= σ*g_k*d_k
 		|| ((value_type(2.0) * δ - value_type(1.0)) * φ_prime_zero >= v.φ_prime && v.φ_prime >= σ * φ_prime_zero && v.φ <= φ_zero + ϵ_k); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
 }
 
-template<typename function_class, typename RVT>
-void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(RVT) direction) {
+template<typename function_class>
+void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(rvector_type) direction) {
 	
 	constexpr value_type ϵ = value_type(0.000001); // range [0, inf) used in the approximate Wolfe conditions
 	constexpr value_type γ = value_type(0.66); // range (0, 1) determines when a bisection step is performed
@@ -372,8 +358,8 @@ void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<v
 	return;
 }
 
-template<typename function_class, typename RVT>
-void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(RVT) direction) {
+template<typename function_class>
+void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(rvector_type) direction) {
 	const value_type φ_a0 = function.evaluate_at(variable_mapping, value_type(0.0), direction);
 	const value_type φ_prime_a0 = deriv;
 
@@ -433,8 +419,8 @@ void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(
 	}
 }
 
-template<typename function_class, typename RVT>
-void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(RVT) direction) {
+template<typename function_class>
+void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(rvector_type) direction) {
 	const value_type φ_a0 = function.evaluate_at(variable_mapping, value_type(0.0), direction);
 	const value_type φ_prime_a0 = deriv;
 
@@ -474,7 +460,7 @@ void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector
 		const value_type a = multiplier * (a_last * a_last * m_1 - a_k * a_k * m_2);
 		const value_type b = multiplier * (a_k * a_k * a_k * m_2 - a_last * a_last * a_last * m_1);
 
-		const value_type a_new = -b + sqrt(b * b - value_type(3.0) * a * φ_prime_a0)) / (value_type(3.0) * a);
+		const value_type a_new = -b + sqrt(b * b - value_type(3.0) * a * φ_prime_a0) / (value_type(3.0) * a);
 		const value_type φ_a_new = function.evaluate_at(variable_mapping, a_new, direction);
 
 		if (φ_a_new - φ_a0 <= δ * a_k * φ_prime_a0) {
@@ -498,8 +484,8 @@ void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector
 	}
 }
 
-template<typename function_class, typename RVT>
-void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, const short max_index, const value_type deriv, IN(RVT) direction) {
+template<typename function_class>
+void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, const short max_index, const value_type deriv, IN(rvector_type) direction) {
 	constexpr value_type factor = value_type(0.5);
 
 	const value_type base_value = function.evaluate_at(variable_mapping, value_type(0.0), direction);
@@ -526,43 +512,66 @@ void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var
 	}
 }
 
-template<typename function_class, typename RVT>
-using ls_function_type = void(*)(IN(function_class), INOUT(std::vector<var_mapping>), value_type, const short, const value_type, IN(RVT));
+template<typename function_class>
+using ls_function_type = void(*)(IN(function_class), INOUT(std::vector<var_mapping>), value_type, const short, const value_type, IN(rvector_type));
 
-template<typename RVT, typename VT>
-using reduced_gradient_to_direction_map_type = void(*)(const Eigen::Index, const Eigen::Index, IN(std::vector<var_mapping>), IN(RVT), INOUT(VT));
+using reduced_gradient_to_direction_map_type = void(*)(const Eigen::Index, const Eigen::Index, IN(std::vector<var_mapping>), IN(rvector_type), INOUT(vector_type));
 
-template<typename function_class, typename MT,
-	ls_function_type<function_class, Eigen::Map<e_row_vector, Eigen::Aligned>> LINE_SEARCH,
-	reduced_gradient_to_direction_map_type<Eigen::Map<e_row_vector, Eigen::Aligned>, Eigen::Map<e_vector, Eigen::Aligned>> RG_MAP>
-void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(MT) coeff, IN(std::vector<unsigned short>) rank_starts) {
+template<typename function_class, ls_function_type<function_class> LINE_SEARCH, reduced_gradient_to_direction_map_type RG_MAP>
+void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(std::vector<unsigned short>) rank_starts) {
 	const auto b_size = coeff.rows();
 	const auto full = coeff.cols();
-	const auto remainder = b_size - full;
+	const auto remainder = full - b_size;
 
 	constexpr value_type ϵ = value_type(0.000001); // range [0, inf)
 
-	Eigen::Map<e_row_vector, Eigen::Aligned> gradient((value_type*)_alloca(full * sizeof(value_type)), full);
-	Eigen::Map<e_vector, Eigen::Aligned> direction((value_type*)_alloca(full * sizeof(value_type)), full);
-	Eigen::Map<e_row_vector, Eigen::Aligned> reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+	rvector_type gradient((value_type*)_alloca(full * sizeof(value_type)), full);
+	vector_type direction((value_type*)_alloca(full * sizeof(value_type)), full);
+	rvector_type reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
 
+	matrix_type LU_store((value_type*)_alloca(sizeof(value_type) * b_size * b_size), b_size, b_size);
+	Eigen::PartialPivLU<Eigen::Ref<matrix_type>> LU_decomp;
+	bool is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
+
+	if (!is_upper_triangular) {
+		LU_store.noalias() = coeff.leftCols(b_size);
+		new (&LU_decomp) Eigen::PartialPivLU<Eigen::Ref<matrix_type>>(LU_store);
+	}
+	
 #ifndef SAFETY_OFF
 	size_t iteration_count = 0;
 #endif
 
 	//inside iteration
 	do {
-		maximize_basis(coeff, variable_mapping, rank_starts);
+		if (conditional_maximize_basis(basis_size, coeff, variable_mapping, rank_starts)) {
+			is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
+			if (!is_upper_triangular) {
+				LU_store.noalias() = coeff.leftCols(b_size);
+				new (&LU_decomp) Eigen::PartialPivLU<Eigen::Ref<matrix_type>>(LU_store);
+			}
+		}
 
 		gradient.noalias() = e_row_vector::Zero(full);
-		calculate_simple_gradient(function, variable_mapping, gradient);
+		function.gradient_at(variable_mapping, gradient);
 
-		reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
-		caclulate_reduced_n_gradient(coeff, gradient, n_result);
+		if (is_upper_triangular) {
+			reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+			caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, n_result);
 
-		direction.noalias() = e_vector::Zero(full);
-		RG_MAP(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
-		calcuate_b_direction(coeff, direction);
+			direction.noalias() = e_vector::Zero(full);
+			RG_MAP(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+			calcuate_b_direction_ut(b_size, remainder, coeff, direction);
+		} else {
+			reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+			caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, n_result);
+
+			direction.noalias() = e_vector::Zero(full);
+			RG_MAP(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+			calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
+		}
 
 		// test for satisfaction
 		if (direction.squaredNorm() <= ϵ*ϵ)
@@ -585,20 +594,17 @@ void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping
 	} while (true);
 }
 
+using restart_conditions_type = bool(*)(size_t, size_t, IN(rvector_type), IN(rvector_type), IN(rvector_type));
 
-
-template<typename RVT>
-bool basic_restart_condition(size_t restart_count, size_t variable_count, IN(RVT) previous_cg, IN(RVT) previous_gradient, IN(RVT) current_gradient) {
+bool basic_restart_condition(size_t restart_count, size_t variable_count, IN(rvector_type) previous_cg, IN(rvector_type) previous_gradient, IN(rvector_type) current_gradient) {
 	return (restart_count >= variable_count);
 }
 
-template<typename RVT>
-bool no_restart_condition(size_t restart_count, size_t variable_count, IN(RVT) previous_cg, IN(RVT) previous_gradient, IN(RVT) current_gradient) {
+bool no_restart_condition(size_t restart_count, size_t variable_count, IN(rvector_type) previous_cg, IN(rvector_type) previous_gradient, IN(rvector_type) current_gradient) {
 	return false;
 }
 
-template<typename RVT>
-bool powell_restart_condition(size_t restart_count, size_t variable_count, IN(RVT) new_cg, IN(RVT) previous_gradient, IN(RVT) current_gradient) {
+bool powell_restart_condition(size_t restart_count, size_t variable_count, IN(rvector_type) new_cg, IN(rvector_type) previous_gradient, IN(rvector_type) current_gradient) {
 	const auto d_g = -((new_cg.transpose() * current_gradient)(0, 0));
 	const auto current_sn = current_gradient.squaredNorm();
 	return (restart_count >= variable_count)
@@ -606,25 +612,34 @@ bool powell_restart_condition(size_t restart_count, size_t variable_count, IN(RV
 		|| (restart_count >= 2 && value_type(-1.2) * current_sn <= d_g && d_g <= value_type(-0.8) * current_sn);
 }
 
-template<typename function_class, typename MT,
-	ls_function_type<function_class, Eigen::Map<e_row_vector, Eigen::Aligned>> LINE_SEARCH,
-	reduced_gradient_to_direction_map_type<Eigen::Map<e_row_vector, Eigen::Aligned>, Eigen::Map<e_vector, Eigen::Aligned>> RG_MAP,
-	cg_function_type<Eigen::Map<e_row_vector, Eigen::Aligned>> CG_FUNCTION,
-	restart_conditions_type<Eigen::Map<e_row_vector, Eigen::Aligned>> RESTART_FUNCTION>
-	void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(MT) coeff, IN(std::vector<unsigned short>) rank_starts) {
+
+template<typename function_class, ls_function_type<function_class> LINE_SEARCH, reduced_gradient_to_direction_map_type RG_MAP, cg_function_type CG_FUNCTION, restart_conditions_type RESTART_FUNCTION>
+void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(std::vector<unsigned short>) rank_starts) {
 
 	const auto b_size = coeff.rows();
 	const auto full = coeff.cols();
-	const auto remainder = b_size - full;
+	const auto remainder = full - b_size;
+
+	const auto sz = variable_mapping.size();
 
 	constexpr value_type ϵ = value_type(0.000001); // range [0, inf)
 
-	Eigen::Map<e_row_vector, Eigen::Aligned> gradient((value_type*)_alloca(full * sizeof(value_type)), full);
-	Eigen::Map<e_row_vector, Eigen::Aligned> previous_gvals((value_type*)_alloca(full * sizeof(value_type)), full);
-	Eigen::Map<e_row_vector, Eigen::Aligned> prev_cg((value_type*)_alloca(full * sizeof(value_type)), full);
+	rvector_type gradient((value_type*)_alloca(full * sizeof(value_type)), full);
+	vector_type direction((value_type*)_alloca(full * sizeof(value_type)), full);
 
-	Eigen::Map<e_vector, Eigen::Aligned> direction((value_type*)_alloca(full * sizeof(value_type)), full);
-	Eigen::Map<e_row_vector, Eigen::Aligned> reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+	rvector_type prev_cg((value_type*)_alloca(remainder * sizeof(value_type)), full);
+	rvector_type new_cg((value_type*)_alloca(remainder * sizeof(value_type)), full);
+	rvector_type prev_reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+	rvector_type reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+
+	matrix_type LU_store((value_type*)_alloca(sizeof(value_type) * b_size * b_size), b_size, b_size);
+	Eigen::PartialPivLU<Eigen::Ref<matrix_type>> LU_decomp;
+	bool is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
+
+	if (!is_upper_triangular) {
+		LU_store.noalias() = coeff.leftCols(b_size);
+		new (&LU_decomp) Eigen::PartialPivLU<Eigen::Ref<matrix_type>>(LU_store);
+	}
 
 #ifndef SAFETY_OFF
 	size_t iteration_count = 0;
@@ -635,33 +650,50 @@ template<typename function_class, typename MT,
 
 	//inside iteration
 	do {
-		maximize_basis(coeff, variable_mapping, rank_starts);
+		if (conditional_maximize_basis(b_size, coeff, variable_mapping, rank_starts)) {
+			is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
+
+			if (!is_upper_triangular) {
+				LU_store.noalias() = coeff.leftCols(b_size);
+				new (&LU_decomp) Eigen::PartialPivLU<Eigen::Ref<matrix_type>>(LU_store);
+			}
+
+			after_reset = true;
+		}
 
 		gradient.noalias() = e_row_vector::Zero(full);
 
+		function.gradient_at(variable_mapping, gradient);
+		reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+		if (is_upper_triangular)
+			caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
+		else
+			caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
 
-		if(after_reset) {
-			calculate_simple_gradient(function, variable_mapping, previous_gvals);
 
-			const auto sz = variable_mapping.size();
-			for (size_t i = 0; i < sz; ++i) {
-				gradient(variable_mapping[i].mapped_index) = previous_gvals(i);
-			}
-			prev_cg.noalias() = previous_gvals;
+		if (after_reset) {
+			prev_reduced_n_gradient.noalias() = reduced_n_gradient;
+			prev_cg.noalias() = reduced_n_gradient;
 
 			after_reset = false;
 			restart_count = 0;
 		} else {
-			++restart_count;
-			after_reset = calculate_cg_gradient<CG_FUNCTION, RESTART_FUNCTION>(function, variable_mapping, restart_count, previous_gvals, prev_cg, gradient);
-		}
-		
-		reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
-		caclulate_reduced_n_gradient(coeff, gradient, n_result);
+			new_cg.noalias() = reduced_n_gradient + CG_FUNCTION(reduced_n_gradient, prev_reduced_n_gradient, prev_cg) * prev_cg;
 
+			++restart_count;
+			after_reset = RESTART_FUNCTION(restart_count, remainder, prev_cg, prev_reduced_n_gradient, new_cg);
+
+			prev_reduced_n_gradient.noalias() = reduced_n_gradient;
+			prev_cg.noalias() = new_cg;
+		}
+
+		
 		direction.noalias() = e_vector::Zero(full);
 		RG_MAP(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
-		calcuate_b_direction(coeff, direction);
+		if (is_upper_triangular)
+			calcuate_b_direction_ut(b_size, remainder, coeff, direction);
+		else
+			calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
 
 		// test for satisfaction
 		if (direction.squaredNorm() <= ϵ*ϵ)
