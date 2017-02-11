@@ -852,13 +852,54 @@ TEST(nlp, basic_functions) {
 
 TEST(nlp, line_search) {
 	linear_test_function a([](value_type x) { return -x / (x*x + 2.0f); }, [](value_type x) { return (2.0f*x*x / pow(2.0f+x*x, 2.0f)) - (1.0f/(2.0f+x*x)); });
-	linear_test_function b([](value_type x) { return pow(x + 0.004f, 5.0f) - 2.0f * pow(x + 0.004f, 4.0f); }, [](value_type x) { return 5.0f * pow(x + 0.004f, 4.0f) - 8.0f * pow(x + 0.004f, 3.0f); });
+	linear_test_function b([](value_type x) { return pow(x + 0.004f, 5.0f) - 2.0f * pow(x + 0.004f, 4.0f); },
+		[](value_type x) { return value_type(log(exp(5.0f*pow(x + 0.004f, 4.0f))/exp(8.0f*pow(x + 0.004f, 3.0f))));});
 	linear_test_function c([](value_type x) { return 0.5f*pow(x, 2.0f) - 1.01f * pow(x, 4.0f) + pow(x, 6.0f)/6.0f + 1.0f / (1.0f + x); }, [](value_type x) { return x - 4.04f*pow(x,3.0f) + pow(x, 5.0f)- 1.0f / pow(1.0f + x, 2.0f); });
 	linear_test_function d([](value_type x) { return sin(x)+x*x-1.5f*x; }, [](value_type x) { return cos(x)+2.0f*x-1.5f; });
 	linear_test_function e([](value_type x) { return - pow(x+1.0f,2.0f); }, [](value_type x) { return -2.0f * (x + 1.0f); });
 
-	auto result = derivative_interpolation_linear_steepest_descent(b, 2.0f);
-	std::string r_str = std::string("result 1: ") + std::to_string(result.first) + ", " + std::to_string(result.second) + "\n";
-	OutputDebugStringA(r_str.c_str());
+	auto result = backtrack_linear_steepest_descent(c, 2.0f);
+	ASSERT_NEAR(1.94727, result.first, 0.001);
+	result = hager_zhang_linear_steepest_descent(c, 2.0f);
+	ASSERT_NEAR(1.94727, result.first, 0.001);
+	result = interpolation_linear_steepest_descent(c, 2.0f);
+	ASSERT_NEAR(1.94727, result.first, 0.001);
+	result = derivative_interpolation_linear_steepest_descent(c, 2.0f);
+	ASSERT_NEAR(1.94727, result.first, 0.001);
+
+	result = backtrack_linear_steepest_descent(a, 2.0f);
+	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
+	result = hager_zhang_linear_steepest_descent(a, 2.0f);
+	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
+	result = interpolation_linear_steepest_descent(a, 2.0f);
+	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
+	result = derivative_interpolation_linear_steepest_descent(a, 2.0f);
+	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
+
+	result = derivative_interpolation_linear_steepest_descent(d, 2.0f);
+	ASSERT_NEAR(0.267826, result.first, 0.001);
+	result = backtrack_linear_steepest_descent(d, 2.0f);
+	ASSERT_NEAR(0.267826, result.first, 0.001);
+	result = interpolation_linear_steepest_descent(d, 2.0f);
+	ASSERT_NEAR(0.267826, result.first, 0.001);
+	result = hager_zhang_linear_steepest_descent(d, 2.0f);
+	ASSERT_NEAR(0.267826, result.first, 0.001);
+
+	result = derivative_interpolation_linear_steepest_descent(e, 2.0f);
+	ASSERT_NEAR(2.0, result.first, 0.001);
+	result = backtrack_linear_steepest_descent(e, 2.0f);
+	ASSERT_NEAR(2.0, result.first, 0.001);
+	result = interpolation_linear_steepest_descent(e, 2.0f);
+	ASSERT_NEAR(2.0, result.first, 0.001);
+	result = hager_zhang_linear_steepest_descent(e, 2.0f);
+	ASSERT_NEAR(2.0, result.first, 0.001);
+
+	result = derivative_interpolation_linear_steepest_descent(b, 2.0f);
+	ASSERT_NEAR(1.596, result.first, 0.001);
+	result = hager_zhang_linear_steepest_descent(b, 2.0f);
+	ASSERT_NEAR(1.596, result.first, 0.001);
+	result = backtrack_linear_steepest_descent(b, 2.0f);
+	ASSERT_NEAR(1.596, result.first, 0.001);
+	result = interpolation_linear_steepest_descent(b, 2.0f);
 	ASSERT_NEAR(1.596, result.first, 0.001);
 }

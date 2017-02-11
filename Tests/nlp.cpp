@@ -36,7 +36,7 @@ void LU_inverse_times_vector(IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu
 
 void caclulate_reduced_n_gradient_ut(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, IN(rvector_type) gradient, INOUT(rvector_type) n_result) {
 	rvector_type intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
-	intermediate.noalias() = Eigen::VectorXf::Zero(rows);
+	intermediate.noalias() = rvector_type::Zero(rows);
 
 	_vector_times_ut_inverse(gradient.head(rows), coeff, intermediate);
 	n_result.noalias() = gradient.tail(remainder) - (intermediate * coeff.rightCols(coeff.cols() - rows));
@@ -47,7 +47,7 @@ void calcuate_b_direction_ut(Eigen::Index rows, Eigen::Index remainder, IN(matri
 	n_times_d.noalias() = coeff.rightCols(remainder) * direction.tail(remainder);
 
 	vector_type intermediate((value_type*)_alloca(rows * sizeof(value_type)), rows);
-	intermediate.noalias() = Eigen::VectorXf::Zero(rows);
+	intermediate.noalias() = vector_type::Zero(rows);
 
 	ut_inverse_times_vector(coeff, n_times_d, intermediate);
 	direction.head(rows).noalias() = -intermediate;
@@ -306,9 +306,40 @@ bool satisfies_hager_zhang_conditions(IN(limiting_value) v, const value_type φ_
 	constexpr value_type σ = static_cast<value_type>(σ_times_1000) / value_type(1000.0); // range [δ, 1)  used in the Wolfe conditions
 
 	static_assert(σ_times_1000 > δ_times_1000, "sigma must be > than delta");
+	static_assert(σ_times_1000 < 1000, "sigma must be < than 1");
+	static_assert(δ_times_1000 < 500, "delta must be < than 0.5");
+	static_assert(δ_times_1000 > 0, "delta must be > than 0");
 
-	return (v.φ - φ_zero <= δ * v.at * v.φ_prime && v.φ_prime >= σ * φ_prime_zero)   // wolfe condition 2.2: f(x_k + α_k * d_k ) − f(x _k) ≤ δ * α_k * g_k * d_k &&  wolfe condition 2.3: g_k+1*d_k >= σ*g_k*d_k
-		|| ((value_type(2.0) * δ - value_type(1.0)) * φ_prime_zero >= v.φ_prime && v.φ_prime >= σ * φ_prime_zero && v.φ <= φ_zero + ϵ_k); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
+
+	return 0 != (((v.φ <= φ_zero + δ * v.at * φ_prime_zero) & (v.φ_prime >= σ * φ_prime_zero))   // wolfe condition 2.2: f(x_k + α_k * d_k ) − f(x _k) ≤ δ * α_k * g_k * d_k &&  wolfe condition 2.3: g_k+1*d_k >= σ*g_k*d_k
+		| (((value_type(2.0) * δ - value_type(1.0)) * φ_prime_zero >= v.φ_prime) & (v.φ_prime >= σ * φ_prime_zero) & (v.φ <= φ_zero + ϵ_k))); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
+}
+
+template<int δ_times_1000, int σ_times_1000>
+bool satisfies_hager_zhang_conditions_zero_epsilon(IN(limiting_value) v, const value_type φ_zero, const value_type φ_prime_zero) {
+	constexpr value_type δ = static_cast<value_type>(δ_times_1000) / value_type(1000.0); // range (0, 0.5)  used in the Wolfe conditions
+	constexpr value_type σ = static_cast<value_type>(σ_times_1000) / value_type(1000.0); // range [δ, 1)  used in the Wolfe conditions
+	
+	static_assert(σ_times_1000 > δ_times_1000, "sigma must be > than delta");
+	static_assert(σ_times_1000 < 1000, "sigma must be < than 1");
+	static_assert(δ_times_1000 < 500, "delta must be < than 0.5");
+	static_assert(δ_times_1000 > 0, "delta must be > than 0");
+
+
+	return 0 != (((v.φ <= φ_zero + δ * v.at * φ_prime_zero) & (v.φ_prime >= σ * φ_prime_zero))   // wolfe condition 2.2: f(x_k + α_k * d_k ) − f(x _k) ≤ δ * α_k * g_k * d_k &&  wolfe condition 2.3: g_k+1*d_k >= σ*g_k*d_k
+		| (((value_type(2.0) * δ - value_type(1.0)) * φ_prime_zero >= v.φ_prime) & (v.φ_prime >= σ * φ_prime_zero) & (v.φ <= φ_zero))); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
+}
+
+template<int δ_times_1000>
+bool satisfies_hager_zhang_delta_conditions(IN(limiting_value) v, const value_type φ_zero, const value_type φ_prime_zero) {
+	constexpr value_type δ = static_cast<value_type>(δ_times_1000) / value_type(1000.0); // range (0, 0.5)  used in the Wolfe conditions
+
+	static_assert(δ_times_1000 < 500, "delta must be < than 0.5");
+	static_assert(δ_times_1000 > 0, "delta must be > than 0");
+
+
+	return 0 != (((v.φ <= φ_zero + δ * v.at * φ_prime_zero))   // wolfe condition 2.2: f(x_k + α_k * d_k ) − f(x _k) ≤ δ * α_k * g_k * d_k &&  wolfe condition 2.3: g_k+1*d_k >= σ*g_k*d_k
+		| (((value_type(2.0) * δ - value_type(1.0)) * φ_prime_zero >= v.φ_prime) & (v.φ <= φ_zero))); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
 }
 
 template<typename function_class>
@@ -330,7 +361,7 @@ void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<v
 
 		const auto interval = hager_zhang_secant_step(function, variable_mapping, direction, a_k, b_k, φ_zero, ϵ_k);
 
-		if (interval.second.at - interval.first.at > γ * (b_k.at - a_k.at)) {
+		if (interval.second.at > γ * (b_k.at - a_k.at) + interval.first.at) {
 			const auto c_val = (interval.first.at + interval.second.at) / value_type(2.0);
 			const limiting_value c(c_val, function.evaluate_at_with_derivative(variable_mapping, c_val, direction));
 			std::tie(a_k, b_k) = hager_zhang_interval_update(function, variable_mapping, direction, interval.first, interval.second, c, φ_zero, ϵ_k);
@@ -338,7 +369,7 @@ void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<v
 			std::tie(a_k, b_k) = interval;
 		}
 
-	} while(!satisfies_hager_zhang_conditions<100,900>(b_k, φ_zero, φ_prime_zero, ϵ_k)); // conditions not satisfied 
+	} while(!satisfies_hager_zhang_conditions<100,900>(b_k, φ_zero, φ_prime_zero, ϵ_k) & (std::nextafter(a_k.at, max_value<value_type>::value) != b_k.at)); // conditions not satisfied 
 
 	const auto sz = variable_mapping.size();
 	for (size_t i = 0; i < sz; ++i) {
@@ -349,30 +380,28 @@ void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<v
 	return;
 }
 
-std::string fp_output_helper(float f) {
+std::string fp_output_helper(value_type f) {
 	char* buffer = (char*)_alloca(100);
 	snprintf(buffer, 100, "%.9g", f);
 	return std::string(buffer);
 }
 
 
-void minimum_adjust(INOUT(float) destination_value, float adjustment) {
-	destination_value += adjustment;
-	/*if (adjustment == 0)
+void minimum_adjust(INOUT(value_type) destination_value, const value_type fac_a, const value_type fac_b) {
+	if ((fac_a == 0) | (fac_b == 0))
 		return;
-	if (adjustment < 0) {
-		destination_value = std::min(destination_value + adjustment, std::nextafter(destination_value, value_type(0.0)));
+	if (fac_a < 0 != fac_b < 0) {
+		destination_value = std::min(destination_value + fac_a*fac_b, std::nextafter(destination_value, value_type(0.0)));
 	} else {
-		destination_value = std::max(destination_value + adjustment, std::nextafter(destination_value, destination_value * value_type(2.0)));
-	}*/
+		destination_value = std::max(destination_value + fac_a*fac_b, std::nextafter(destination_value, max_value<value_type>::value));
+	}
 }
 
 template<typename function_class>
-void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(rvector_type) direction) {
+void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_prime_a0, IN(rvector_type) direction) {
 	const value_type φ_a0 = function.evaluate_at(variable_mapping, value_type(0.0), direction);
-	const value_type φ_prime_a0 = deriv;
 
-	constexpr value_type δ = value_type(0.01);
+	constexpr value_type δ = value_type(0.1);
 
 	limiting_value a_k(max_lambda, function.evaluate_at_with_derivative(variable_mapping, max_lambda, direction));
 
@@ -385,66 +414,41 @@ void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(
 		return;
 	}
 
-	// auto a_last = a_k;
-
 	while (true) {
 		const value_type d_1 = φ_prime_a0 + a_k.φ_prime - value_type(3) * (φ_a0 - a_k.φ) / (-a_k.at);
 		const value_type d_2 = sqrt(d_1*d_1 - φ_prime_a0 * a_k.φ_prime);
 
 		const auto denom = a_k.φ_prime - φ_prime_a0 + value_type(2) * d_2;
+		const value_type a_new_at = a_k.at - (a_k.at) * ((a_k.φ_prime + d_2 - d_1) / denom);
+		//const auto a_new = limiting_value(a_new_at, function.evaluate_at_with_derivative(variable_mapping, a_new_at, direction));
 
-		if (denom == value_type(0.0)) {
-			std::string r_str = std::string("denom fail: ") + fp_output_helper(d_2) + "\n";
-			OutputDebugStringA(r_str.c_str());
+		if (a_k.at - a_new_at > value_type(0.9) * a_k.at || a_k.at - a_new_at < value_type(0.1) * a_k.at) {
+			const value_type a_new_at_b = value_type(0.5) * a_k.at;
+			a_k = limiting_value(a_new_at_b, function.evaluate_at_with_derivative(variable_mapping, a_new_at_b, direction));
+		} else {
+			a_k = limiting_value(a_new_at, function.evaluate_at_with_derivative(variable_mapping, a_new_at, direction));
 		}
 
-		const value_type a_new_at = (denom != value_type(0.0)) ? a_k.at - (a_k.at) * ((a_k.φ_prime + d_2 - d_1) / denom) : a_k.at;
-		const auto a_new = limiting_value(a_new_at, function.evaluate_at_with_derivative(variable_mapping, a_new_at, direction));
-
-		if ((a_new.φ <= (δ * a_new.at * φ_prime_a0) + φ_a0)) {
+		if ((a_k.φ <= (δ * a_k.at * φ_prime_a0) + φ_a0) & (a_k.φ_prime <= 0)) {
 			const auto sz = variable_mapping.size();
 			for (size_t i = 0; i < sz; ++i) {
-				std::string r_str = std::string("adjusted value: ") + fp_output_helper(variable_mapping[i].current_value) + " + " + fp_output_helper(direction(variable_mapping[i].mapped_index)) + " * " + fp_output_helper(a_new_at) + " = " + fp_output_helper(variable_mapping[i].current_value + direction(variable_mapping[i].mapped_index) * a_new_at) + "\n";
-				OutputDebugStringA(r_str.c_str());
-
-				//variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_new;
-				minimum_adjust(variable_mapping[i].current_value, direction(variable_mapping[i].mapped_index) * a_new_at);
+				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
 			}
 			return;
 		}
-
-		// a_last = a_k;
-
-		// std::string r_str = std::string("inner step: ") + fp_output_helper(a_k.at) + "\n";
-		// OutputDebugStringA(r_str.c_str());
-
-		if (a_k.at - a_new_at > value_type(0.9) * a_k.at || a_k.at - a_new_at < value_type(0.1) * a_k.at) {
-			// std::string r_str = std::string("rejected: ") + fp_output_helper(a_new_at) + "\n";
-			// OutputDebugStringA(r_str.c_str());
-
-			const value_type a_new_at_b = value_type(0.5) * a_k.at;
-			a_k = limiting_value(a_new_at_b, function.evaluate_at_with_derivative(variable_mapping, a_new_at_b, direction));
-
-			// r_str = std::string("bisected: ") + fp_output_helper(a_k.at) + "\n";
-			// OutputDebugStringA(r_str.c_str());
-		} else {
-			a_k = a_new;
-		}
-
 	}
 }
 
 template<typename function_class>
-void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(rvector_type) direction) {
+void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_prime_a0, IN(rvector_type) direction) {
 	const value_type φ_a0 = function.evaluate_at(variable_mapping, value_type(0.0), direction);
-	const value_type φ_prime_a0 = deriv;
 
-	constexpr value_type δ = value_type(0.001);
+	constexpr value_type δ = value_type(0.1);
 	
-	value_type a_k = max_lambda;
-	value_type φ_a_k = function.evaluate_at(variable_mapping, max_lambda, direction);
+	value_type a_k_at = max_lambda;
+	limiting_value a_k = limiting_value(a_k_at, function.evaluate_at_with_derivative(variable_mapping, a_k_at, direction));
 
-	if (φ_a_k <=  δ * a_k * φ_prime_a0 + φ_a0) {
+	if (a_k.φ <= (δ * max_lambda * φ_prime_a0) + φ_a0) {
 		const auto sz = variable_mapping.size();
 		for (size_t i = 0; i < sz; ++i) {
 			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * max_lambda;
@@ -453,58 +457,60 @@ void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector
 		return;
 	}
 
-	value_type a_last = a_k;
-	value_type φ_a_last = φ_a_k;
+	auto a_last = a_k;
 
-	//Quadratic interpolation
-	a_k = value_type(-0.5) * φ_prime_a0 * a_k * a_k / (φ_a_k - φ_a0 - φ_prime_a0 * a_k);
-	φ_a_k = function.evaluate_at(variable_mapping, a_k, direction);
 
-	if (φ_a_k <= (δ * a_k * φ_prime_a0) + φ_a0) {
+	a_k_at = value_type(-0.5) * φ_prime_a0 * max_lambda * max_lambda / a_k.φ - φ_a0 - φ_prime_a0 * max_lambda;
+	if ( max_lambda - a_k_at >= value_type(0.9) * max_lambda || max_lambda - a_k_at <= value_type(0.1) * max_lambda) {
+		a_k = limiting_value(value_type(0.5) * max_lambda, function.evaluate_at_with_derivative(variable_mapping, value_type(0.5) * max_lambda, direction));
+	} else {
+		a_k = limiting_value(a_k_at, function.evaluate_at_with_derivative(variable_mapping, a_k_at, direction));
+	}
+
+	if((a_k.φ <= (δ * a_k.at * φ_prime_a0) + φ_a0) & (a_k.φ_prime <= 0)) {
 		const auto sz = variable_mapping.size();
 		for (size_t i = 0; i < sz; ++i) {
-			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k;
+			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
 		}
 		return;
 	}
+
 	while (true) {
-		const value_type multiplier = value_type(1.0) / (a_last * a_last * a_k * a_k * (a_k - a_last));
-		const value_type m_1 = φ_a_k - φ_a0 - φ_prime_a0 * a_k;
-		const value_type m_2 = φ_a_last - φ_a0 - φ_prime_a0 * a_last;
+		const value_type multiplier = value_type(1.0) / (a_last.at * a_last.at * a_k.at * a_k.at * (a_k.at - a_last.at));
+		const value_type m_1 = a_k.φ - φ_a0 - φ_prime_a0 * a_k.at;
+		const value_type m_2 = a_last.φ - φ_a0 - φ_prime_a0 * a_last.at;
 
-		const value_type a = multiplier * (a_last * a_last * m_1 - a_k * a_k * m_2);
-		const value_type b = multiplier * (a_k * a_k * a_k * m_2 - a_last * a_last * a_last * m_1);
+		const value_type a = multiplier * (a_last.at * a_last.at * m_1 - a_k.at *a_k.at * m_2);
+		const value_type b = multiplier * (a_k.at * a_k.at * a_k.at * m_2 - a_last.at * a_last.at * a_last.at * m_1);
 
-		const value_type a_new = -b + sqrt(b * b - value_type(3.0) * a * φ_prime_a0) / (value_type(3.0) * a);
-		const value_type φ_a_new = function.evaluate_at(variable_mapping, a_new, direction);
+		value_type a_new_at = -b + sqrt(b * b - value_type(3.0) * a * φ_prime_a0) / (value_type(3.0) * a);
 
-		if (φ_a_new <= δ * a_new * φ_prime_a0 + φ_a0) {
+		a_last = a_k;
+
+		if (a_k.at >= value_type(0.9) * a_k.at + a_new_at || a_k.at <= value_type(0.1) * a_k.at + a_new_at) {
+			a_k = limiting_value(value_type(0.5) * a_k.at, function.evaluate_at_with_derivative(variable_mapping, value_type(0.5) * a_k.at, direction));
+		} else {
+			a_k = limiting_value(a_new_at, function.evaluate_at_with_derivative(variable_mapping, a_new_at, direction));
+		}
+
+		if ((a_k.φ <= (δ * a_k.at * φ_prime_a0) + φ_a0) & (a_k.φ_prime <= 0)) {
 			const auto sz = variable_mapping.size();
 			for (size_t i = 0; i < sz; ++i) {
-				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_new;
+				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
 			}
 			return;
-		}
-		
-		a_last = a_k;
-		φ_a_last = φ_a_k;
-
-		if (a_k - a_new > value_type(0.9) * a_k || a_k - a_new < value_type(0.1) * a_k) {
-			a_k = value_type(0.5) * a_k;
-			φ_a_k = function.evaluate_at(variable_mapping, a_k, direction);
-		} else {
-			a_k = a_new;
-			φ_a_k = φ_a_new;
 		}
 	}
 }
 
 template<typename function_class>
-void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, const short max_index, const value_type deriv, IN(rvector_type) direction) {
-	constexpr value_type factor = value_type(0.5);
+void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, const value_type lambda, const short max_index, const value_type φ_prime_a0, IN(rvector_type) direction) {
+	constexpr value_type δ = value_type(0.100);
 
-	const value_type base_value = function.evaluate_at(variable_mapping, value_type(0.0), direction);
-	if ((function.evaluate_at(variable_mapping, lambda, direction) - base_value) <= lambda * deriv * factor) {
+	const value_type φ_a0 = function.evaluate_at(variable_mapping, value_type(0.0), direction);
+	auto a_k = limiting_value(lambda, function.evaluate_at_with_derivative(variable_mapping, lambda, direction));
+
+	if (a_k.φ <= φ_a0 + δ * a_k.at * φ_prime_a0) {
 		// successful at max
 		const auto sz = variable_mapping.size();
 		for (size_t i = 0; i < sz; ++i) {
@@ -512,26 +518,31 @@ void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var
 		}
 		variable_mapping[max_index].current_value = value_type(0.0);
 		return;
-	} 
+	}
 
-	while (true) {
-		lambda /= value_type(2.0);
+	a_k = limiting_value(a_k.at * value_type(0.5), function.evaluate_at_with_derivative(variable_mapping, a_k.at * value_type(0.5), direction));
 
-		if ((function.evaluate_at(variable_mapping, lambda, direction) - base_value) <= lambda * deriv * factor) {
+	do {
+		if((a_k.φ <= φ_a0 + δ * a_k.at * φ_prime_a0) & (a_k.φ_prime <= 0)) {
 			const auto sz = variable_mapping.size();
 			for (size_t i = 0; i < sz; ++i) {
-				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * lambda;
+				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
+				//minimum_adjust(variable_mapping[i].current_value, direction(variable_mapping[i].mapped_index), a_k.at);
 			}
 			return;
 		}
-	}
+
+		a_k = limiting_value(a_k.at * value_type(0.5), function.evaluate_at_with_derivative(variable_mapping, a_k.at * value_type(0.5), direction));
+	} while (a_k.at != 0);
+
+	OutputDebugStringA("zero lambda");
 }
 
 template<typename function_class>
 using ls_function_type = void(*)(IN(function_class), INOUT(std::vector<var_mapping>), value_type, const short, const value_type, IN(rvector_type));
 
 template<ls_function_type<linear_test_function> LINE_SEARCH>
-std::pair<value_type, size_t> linear_steepest_descent(IN(linear_test_function) func, value_type max_value) {
+std::pair<value_type, size_t> linear_steepest_descent(IN(linear_test_function) func, value_type max_v) {
 	std::vector<var_mapping> variable = {var_mapping{value_type(0.0),0}};
 
 	value_type d_value = value_type(0.0);
@@ -548,31 +559,33 @@ std::pair<value_type, size_t> linear_steepest_descent(IN(linear_test_function) f
 
 		std::string r_str = std::string("step ") + std::to_string(count) + ": f(" + fp_output_helper(variable[0].current_value) + ") = " + fp_output_helper(func.evaluate_at(variable)) + ", dx: " + fp_output_helper(gradient(0)) + "\n";
 		OutputDebugStringA(r_str.c_str());
+		//r_str = fp_output_helper(std::nextafter(variable[0].current_value, value_type(0.0))) + " < " + fp_output_helper(variable[0].current_value) + " < " + fp_output_helper(std::nextafter(variable[0].current_value, max_value<value_type>::value)) + "\n";
+		//OutputDebugStringA(r_str.c_str());
 
 		if ((direction(0) < 0 && variable[0].current_value == value_type(0.0)) ||
-			(direction(0) > 0 && variable[0].current_value == max_value) ||
+			(direction(0) > 0 && variable[0].current_value == max_v) ||
 			(abs(direction(0)) < 0.0000001)) {
 			break;
 		}
-
-		direction *= value_type(-1.0) / gradient(0)*direction(0);
 
 		if (direction(0) < 0.0) {
 			value_type lm_max = -variable[0].current_value / direction(0);
 			LINE_SEARCH(func, variable, lm_max, 0, gradient(0)*direction(0), direction);
 		} else {
-			value_type lm_max = (max_value - variable[0].current_value) / direction(0);
+			value_type lm_max = (max_v - variable[0].current_value) / direction(0);
 			LINE_SEARCH(func, variable, lm_max, 0, gradient(0)*direction(0), direction);
 			if (variable[0].current_value == value_type(0.0))
-				variable[0].current_value = max_value;
+				variable[0].current_value = max_v;
 		}
 		++count;
 
 		
 
 #ifndef SAFETY_OFF
-		if (count > 170)
-			abort();
+		if (count > 20) {
+			OutputDebugStringA("hit safety limit\n");
+			break;
+		}
 #endif
 
 	} while (true);

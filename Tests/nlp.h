@@ -11,7 +11,7 @@
 
 #include "Dense"
 
-using value_type = float;
+using value_type = double;
 using e_vector = Eigen::Matrix<value_type, Eigen::Dynamic, 1>;
 using e_row_vector = Eigen::Matrix<value_type, 1, Eigen::Dynamic>;
 using e_matrix = Eigen::Matrix<value_type, Eigen::Dynamic, Eigen::Dynamic>;
