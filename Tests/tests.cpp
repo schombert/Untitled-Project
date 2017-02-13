@@ -1,4 +1,4 @@
-#include "globalhelpers.h"
+﻿#include "globalhelpers.h"
 #include "i18n.h"
 #include "gtest/gtest.h"
 #include "test_helpers.h"
@@ -873,7 +873,7 @@ TEST(nlp, line_search) {
 	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
 	result = interpolation_linear_steepest_descent(a, 2.0f);
 	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
-	result = derivative_interpolation_linear_steepest_descent(a, 2.0f);
+	result = derivative_interpolation_linear_steepest_descent(a, 2.0f); // hits safety limit w/ float
 	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
 
 	result = derivative_interpolation_linear_steepest_descent(d, 2.0f);
@@ -902,4 +902,105 @@ TEST(nlp, line_search) {
 	ASSERT_NEAR(1.596, result.first, 0.001);
 	result = interpolation_linear_steepest_descent(b, 2.0f);
 	ASSERT_NEAR(1.596, result.first, 0.001);
+
+	result = derivitive_minimization_steepest_descent(a, 2.0f);
+	ASSERT_NEAR(sqrt(2.0f), result.first, 0.001);
+	result = derivitive_minimization_steepest_descent(b, 2.0f);
+	ASSERT_NEAR(1.596, result.first, 0.001);
+	result = derivitive_minimization_steepest_descent(c, 2.0f);
+	ASSERT_NEAR(1.94727, result.first, 0.001);
+	result = derivitive_minimization_steepest_descent(d, 2.0f);
+	ASSERT_NEAR(0.267826, result.first, 0.001);
+	result = derivitive_minimization_steepest_descent(e, 2.0f);
+	ASSERT_NEAR(2.0, result.first, 0.001);
+}
+
+TEST(nlp, sum_of_functions_class) {
+	sum_of_functions tf;
+	tf.add_function([](const value_type* at) { return at[0] * at[1]; },
+		[](const value_type* at, const value_type* direction) {return direction[0] * at[1] + direction[1] * at[0];}, 
+		{0, 2});
+	tf.add_function([](const value_type* at) { return at[0] * at[0]; },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0]; },
+		{1});
+	tf.add_function([](const value_type* at) { return at[0] + at[1]; },
+		[](const value_type* at, const value_type* direction) {return direction[0] + direction[1]; },
+		{1, 3});
+	// f(x) = x0*x2 + x1^2 + x1 + x3;
+	// G(f) = (x2, 2*x1 + 1, x0, 1)
+
+	vector_type td((value_type*)_alloca(sizeof(value_type) * 4), 4);
+	rvector_type tg((value_type*)_alloca(sizeof(value_type) * 4), 4);
+
+	std::vector<var_mapping> v = {
+		var_mapping{random_store::get_double() * 10.0, 3},
+		var_mapping{random_store::get_double() * 10.0, 2},
+		var_mapping{random_store::get_double() * 10.0, 0},
+		var_mapping{random_store::get_double() * 10.0, 1}};
+
+	EXPECT_FLOAT_EQ(v[0].current_value*v[2].current_value+v[1].current_value*v[1].current_value + v[1].current_value + v[3].current_value, tf.evaluate_at(v));
+	
+	tf.gradient_at(v, tg);
+	EXPECT_FLOAT_EQ(v[2].current_value, tg(3));
+	EXPECT_FLOAT_EQ(2.0 * v[1].current_value + 1.0, tg(2));
+	EXPECT_FLOAT_EQ(v[0].current_value, tg(0));
+	EXPECT_FLOAT_EQ(1.0, tg(1));
+
+	td(0) = random_store::get_double() * 10.0;
+	td(1) = random_store::get_double() * 10.0;
+	td(2) = random_store::get_double() * 10.0;
+	td(3) = random_store::get_double() * 10.0;
+
+	value_type λ = random_store::get_double();
+
+	EXPECT_FLOAT_EQ((v[0].current_value + td(3) * λ)*(v[2].current_value + td(0)*λ) + (v[1].current_value + td(2)*λ)*(v[1].current_value + td(2)*λ) + (v[1].current_value + td(2)*λ) + (v[3].current_value + td(1)*λ), tf.evaluate_at(v, λ,td));
+	EXPECT_FLOAT_EQ(
+		(v[2].current_value + λ * td(0)) * td(3) + 
+		(2.0 * (v[1].current_value + td(2) * λ) + 1.0) * td(2) + 
+		(v[0].current_value + td(3)*λ) * td(0) + 
+		1.0 * td(1),
+		tf.gradient_at(v, λ, td));
+	const auto pr = tf.evaluate_at_with_derivative(v, λ, td);
+	EXPECT_FLOAT_EQ(tf.evaluate_at(v, λ, td), pr.first);
+	EXPECT_FLOAT_EQ(tf.gradient_at(v, λ, td), pr.second);
+}
+
+TEST(nlp, steepest_descent) {
+	sum_of_functions tf;
+	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		{0});
+	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		{1});
+	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		{2});
+	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		{3});
+
+	std::vector<var_mapping> v = {
+		var_mapping{2.0, 0},
+		var_mapping{0.0, 2},
+		var_mapping{8.0, 1},
+		var_mapping{0.0, 3}};
+
+	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 8), 2, 4);
+	coeff <<	1, 0, 1, 0,
+				0, 1, 0, 2;
+	flat_map<unsigned short, unsigned short> ranks;
+	ranks.insert(std::pair<unsigned short, unsigned short>(0, 0));
+	ranks.insert(std::pair<unsigned short, unsigned short>(0, 1));
+	ranks.insert(std::pair<unsigned short, unsigned short>(1, 2));
+	ranks.insert(std::pair<unsigned short, unsigned short>(1, 3));
+
+	sof_hz_steepest_descent(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	// void sof_m_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts);
 }

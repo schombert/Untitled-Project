@@ -12,6 +12,7 @@
 #include "Dense"
 
 using value_type = double;
+
 using e_vector = Eigen::Matrix<value_type, Eigen::Dynamic, 1>;
 using e_row_vector = Eigen::Matrix<value_type, 1, Eigen::Dynamic>;
 using e_matrix = Eigen::Matrix<value_type, Eigen::Dynamic, Eigen::Dynamic>;
@@ -36,16 +37,32 @@ public:
 	void gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const {
 		gradient(0) = f_prime(variable_mapping[0].current_value);
 	}
-	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(rvector_type) direction) const {
+	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
 		return f(variable_mapping[0].current_value + lambda * direction(0));
 	}
-	value_type gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(rvector_type) direction) const {
+	value_type gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
 		return f_prime(variable_mapping[0].current_value + lambda * direction(0));
 	}
-	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(rvector_type) direction) const {
+	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
 		const auto x = variable_mapping[0].current_value + lambda * direction(0);
 		return std::make_pair(f(x), f_prime(x) * direction(0));
 	}
+};
+
+class sum_of_functions {
+private:
+	std::vector<std::pair<unsigned short, unsigned short>> variable_map;
+	std::vector<std::function<value_type(const value_type* const)>> functions;
+	std::vector<std::function<value_type(const value_type* const, const value_type* const)>> function_derivatives;
+	unsigned int max_function_size;
+public:
+	sum_of_functions() : max_function_size(0) {};
+	void add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::vector<unsigned short>) variables);
+	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const;
+	void gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const;
+	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
+	value_type gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
+	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
 };
 
 
@@ -65,3 +82,7 @@ std::pair<value_type, size_t> backtrack_linear_steepest_descent(IN(linear_test_f
 std::pair<value_type, size_t> interpolation_linear_steepest_descent(IN(linear_test_function) func, value_type max_value);
 std::pair<value_type, size_t> derivative_interpolation_linear_steepest_descent(IN(linear_test_function) func, value_type max_value);
 std::pair<value_type, size_t> hager_zhang_linear_steepest_descent(IN(linear_test_function) func, value_type max_value);
+std::pair<value_type, size_t> derivitive_minimization_steepest_descent(IN(linear_test_function) func, value_type max_value);
+
+void sof_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts);
+void sof_m_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts);
