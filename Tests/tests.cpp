@@ -745,7 +745,7 @@ TEST(relations, feeling) {
 }
 
 TEST(nlp, basic_functions) {
-	matrix_type test_matrix((value_type*)_alloca(sizeof(value_type) * 20), 4, 6);
+	matrix_type test_matrix((value_type*)_alloca(sizeof(value_type) * 24), 4, 6);
 	test_matrix <<	2, 0, 0, 1, 10, 5,
 					0, 1, 3, 0, 10, 5,
 					0, 0, 1.5, 0, 10, 5,
@@ -765,20 +765,20 @@ TEST(nlp, basic_functions) {
 	// tv = tr * tm
 	vector_times_ut_inverse(test_vector, test_matrix, test_result);
 	//tv(0) = 2 * tr(0) = 0.5
-	EXPECT_EQ(0.5, test_result(0));
+	EXPECT_DOUBLE_EQ(0.5, test_result(0));
 	//tv(1) = 0 * tr(0) + 1 * tr(1) = 2
-	EXPECT_EQ(2.0, test_result(1));
+	EXPECT_DOUBLE_EQ(2.0, test_result(1));
 	//tv(2) = 0 * tr(0) + 3 * tr(2) + 1.5 * tr(3) = (3 - 6) / 1.5 = -2
-	EXPECT_EQ(-2.0, test_result(2));
+	EXPECT_DOUBLE_EQ(-2.0, test_result(2));
 	//tv(3) = 1 * tr(0) + 0 * tr(1) + 0 * tr(2) + 1 * tr(3) = (4 - 0.5) = 3.5
-	EXPECT_EQ(3.5, test_result(3));
+	EXPECT_DOUBLE_EQ(3.5, test_result(3));
 
 	test_result.noalias() = rvector_type::Zero(4);
 	vector_times_LU_inverse(test_vector, LU_decomp, test_result);
-	EXPECT_FLOAT_EQ(0.5, test_result(0));
-	EXPECT_FLOAT_EQ(2.0, test_result(1));
-	EXPECT_FLOAT_EQ(-2.0, test_result(2));
-	EXPECT_FLOAT_EQ(3.5, test_result(3));
+	EXPECT_DOUBLE_EQ(0.5, test_result(0));
+	EXPECT_DOUBLE_EQ(2.0, test_result(1));
+	EXPECT_DOUBLE_EQ(-2.0, test_result(2));
+	EXPECT_DOUBLE_EQ(3.5, test_result(3));
 
 	vector_type test_vector_b((value_type*)_alloca(sizeof(value_type) * 4), 4);
 	vector_type test_result_b((value_type*)_alloca(sizeof(value_type) * 4), 4);
@@ -788,36 +788,39 @@ TEST(nlp, basic_functions) {
 	ut_inverse_times_vector(test_matrix, test_vector_b, test_result_b);
 
 	//tv(3) = 1 * tr(3) = 8.0
-	EXPECT_EQ(8.0, test_result_b(3));
+	EXPECT_DOUBLE_EQ(8.0, test_result_b(3));
 	//tv(2) = 1.5 * tr(2) + 0 * tr(3) = 6 / 1.5 = 4
-	EXPECT_EQ(4.0, test_result_b(2));
+	EXPECT_DOUBLE_EQ(4.0, test_result_b(2));
 	//tv(1) = 1 * tr(1) + 3 * tr(2) + 0 * tr(3) = (4 - 12) = -8
-	EXPECT_EQ(-8.0, test_result_b(1));
+	EXPECT_DOUBLE_EQ(-8.0, test_result_b(1));
 	//tv(0) = 2 * tr(0) + 0 * tr(1) + 0 * tr(2) + 1 * tr(3) = (2 - 8) / 2 = -3.0
-	EXPECT_EQ(-3.0, test_result_b(0));
+	EXPECT_DOUBLE_EQ(-3.0, test_result_b(0));
 
 	test_result_b.noalias() = vector_type::Zero(4);
 	LU_inverse_times_vector(LU_decomp, test_vector_b, test_result_b);
-	EXPECT_FLOAT_EQ(8.0, test_result_b(3));
-	EXPECT_FLOAT_EQ(4.0, test_result_b(2));
-	EXPECT_FLOAT_EQ(-8.0, test_result_b(1));
-	EXPECT_FLOAT_EQ(-3.0, test_result_b(0));
+	EXPECT_DOUBLE_EQ(8.0, test_result_b(3));
+	EXPECT_DOUBLE_EQ(4.0, test_result_b(2));
+	EXPECT_DOUBLE_EQ(-8.0, test_result_b(1));
+	EXPECT_DOUBLE_EQ(-3.0, test_result_b(0));
 
 
 
 	rvector_type test_gradient((value_type*)_alloca(sizeof(value_type) * 6), 6);
 	rvector_type test_reduced_n_gradient((value_type*)_alloca(sizeof(value_type) * 2), 2);
 	test_gradient << 1, 2, 3, 4, 5, 6;
+
 	test_reduced_n_gradient.noalias() = rvector_type::Zero(2);
+	EXPECT_DOUBLE_EQ(0.0, test_reduced_n_gradient(0));
+	EXPECT_DOUBLE_EQ(0.0, test_reduced_n_gradient(1));
 
 	caclulate_reduced_n_gradient_ut(4, 2, test_matrix, test_gradient, test_reduced_n_gradient);
-	EXPECT_EQ(-35.0, test_reduced_n_gradient(0));
-	EXPECT_EQ(-14.0, test_reduced_n_gradient(1));
+	EXPECT_DOUBLE_EQ(-35.0, test_reduced_n_gradient(0));
+	EXPECT_DOUBLE_EQ(-14.0, test_reduced_n_gradient(1));
 
 	test_reduced_n_gradient.noalias() = rvector_type::Zero(2);
 	caclulate_reduced_n_gradient_LU(4, 2, test_matrix, LU_decomp, test_gradient, test_reduced_n_gradient);
-	EXPECT_EQ(-35.0, test_reduced_n_gradient(0));
-	EXPECT_EQ(-14.0, test_reduced_n_gradient(1));
+	EXPECT_DOUBLE_EQ(-35.0, test_reduced_n_gradient(0));
+	EXPECT_DOUBLE_EQ(-14.0, test_reduced_n_gradient(1));
 
 	test_reduced_n_gradient *= -1.0;
 
@@ -825,29 +828,29 @@ TEST(nlp, basic_functions) {
 	std::vector<var_mapping> variable_mapping = {var_mapping{1.0, 1}, var_mapping{2.0, 2}, var_mapping{0.0, 5}, var_mapping{10.0, 3}, var_mapping{1.5, 4}, var_mapping{2.5, 0}};
 
 	calcuate_n_direction_mokhtar(4, 2, variable_mapping, test_reduced_n_gradient, test_direction);
-	EXPECT_EQ(-35.0 * 1.5, test_direction(4));
-	EXPECT_EQ(0.0, test_direction(5));
+	EXPECT_DOUBLE_EQ(-35.0 * 1.5, test_direction(4));
+	EXPECT_DOUBLE_EQ(0.0, test_direction(5));
 
 	calcuate_n_direction_steepest(4, 2, variable_mapping, test_reduced_n_gradient, test_direction);
-	EXPECT_EQ(-35.0, test_direction(4));
-	EXPECT_EQ(0.0, test_direction(5));
+	EXPECT_DOUBLE_EQ(-35.0, test_direction(4));
+	EXPECT_DOUBLE_EQ(0.0, test_direction(5));
 
 	calcuate_b_direction_ut(4, 2, test_matrix, test_direction);
-	EXPECT_FLOAT_EQ(0.0, test_direction(0));
-	EXPECT_FLOAT_EQ(-350.0, test_direction(1));
-	EXPECT_FLOAT_EQ(350.0 / 1.5, test_direction(2));
-	EXPECT_FLOAT_EQ(350.0, test_direction(3));
+	EXPECT_DOUBLE_EQ(0.0, test_direction(0));
+	EXPECT_DOUBLE_EQ(-350.0, test_direction(1));
+	EXPECT_DOUBLE_EQ(350.0 / 1.5, test_direction(2));
+	EXPECT_DOUBLE_EQ(350.0, test_direction(3));
 
 	test_direction.head(4) = vector_type::Zero(4);
 	calcuate_b_direction_LU(4, 2, test_matrix, LU_decomp, test_direction);
-	EXPECT_FLOAT_EQ(0.0, test_direction(0));
-	EXPECT_FLOAT_EQ(-350.0, test_direction(1));
-	EXPECT_FLOAT_EQ(350.0 / 1.5, test_direction(2));
-	EXPECT_FLOAT_EQ(350.0, test_direction(3));
+	EXPECT_DOUBLE_EQ(0.0, test_direction(0));
+	EXPECT_DOUBLE_EQ(-350.0, test_direction(1));
+	EXPECT_DOUBLE_EQ(350.0 / 1.5, test_direction(2));
+	EXPECT_DOUBLE_EQ(350.0, test_direction(3));
 
 	const auto ml = max_lambda(variable_mapping, test_direction);
-	EXPECT_FLOAT_EQ(1.0 / 350.0, ml.first);
-	EXPECT_EQ(0, ml.second);
+	EXPECT_DOUBLE_EQ(1.0 / 350.0, ml.first);
+	EXPECT_DOUBLE_EQ(0, ml.second);
 }
 
 TEST(nlp, line_search) {
@@ -965,20 +968,23 @@ TEST(nlp, sum_of_functions_class) {
 	EXPECT_FLOAT_EQ(tf.gradient_at(v, λ, td), pr.second);
 }
 
+
 TEST(nlp, steepest_descent) {
 	sum_of_functions tf;
 	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
-		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
 		{0});
 	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
-		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
 		{1});
 	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
-		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
 		{2});
 	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
-		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * at[0] - direction[0] * value_type(4.0); },
+		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
 		{3});
+
+	//_control87(_EM_INVALID | _EM_DENORMAL | _EM_ZERODIVIDE | _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INEXACT, _MCW_EM);
 
 	std::vector<var_mapping> v = {
 		var_mapping{2.0, 0},
@@ -989,11 +995,12 @@ TEST(nlp, steepest_descent) {
 	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 8), 2, 4);
 	coeff <<	1, 0, 1, 0,
 				0, 1, 0, 2;
-	flat_map<unsigned short, unsigned short> ranks;
+	flat_multimap<unsigned short, unsigned short> ranks;
 	ranks.insert(std::pair<unsigned short, unsigned short>(0, 0));
 	ranks.insert(std::pair<unsigned short, unsigned short>(0, 1));
 	ranks.insert(std::pair<unsigned short, unsigned short>(1, 2));
 	ranks.insert(std::pair<unsigned short, unsigned short>(1, 3));
+
 
 	sof_hz_steepest_descent(tf, v, coeff, ranks);
 
@@ -1002,5 +1009,114 @@ TEST(nlp, steepest_descent) {
 	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
 	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
 
-	// void sof_m_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts);
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_m_hz_steepest_descent(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_dm_steepest_descent(tf, v, coeff, ranks); // failed, too many iterations
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value); 
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_m_dm_steepest_descent(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_bt_steepest_descent(tf, v, coeff, ranks); // failed -- too many iterations
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_m_bt_steepest_descent(tf, v, coeff, ranks); // failed -- too many iterations
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_int_steepest_descent(tf, v, coeff, ranks);  // failed -- too many iterations
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_m_int_steepest_descent(tf, v, coeff, ranks); // failed -- too many iterations
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_dint_steepest_descent(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0;
+	v[1].current_value = 0.0;
+	v[2].current_value = 8.0;
+	v[3].current_value = 0.0;
+
+	sof_m_dint_steepest_descent(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+	
 }
+/****/

@@ -39,7 +39,7 @@ void caclulate_reduced_n_gradient_ut(Eigen::Index rows, Eigen::Index remainder, 
 	intermediate.noalias() = rvector_type::Zero(rows);
 
 	_vector_times_ut_inverse(gradient.head(rows), coeff, intermediate);
-	n_result.noalias() = gradient.tail(remainder) - (intermediate * coeff.rightCols(coeff.cols() - rows));
+	n_result.noalias() = gradient.tail(remainder) - (intermediate * coeff.rightCols(remainder));
 }
 
 void calcuate_b_direction_ut(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, INOUT(vector_type) direction) {
@@ -195,7 +195,7 @@ bool zero_element_in_basis(const Eigen::Index basis_size, IN(std::vector<var_map
 	return false;
 }
 
-bool conditional_maximize_basis(const Eigen::Index basis_size, INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(flat_map<unsigned short, unsigned short>) rank_starts) {
+bool conditional_maximize_basis(const Eigen::Index basis_size, INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	const auto sz = variable_mapping.size();
 
 	if (!zero_element_in_basis(basis_size, variable_mapping)) {
@@ -203,8 +203,8 @@ bool conditional_maximize_basis(const Eigen::Index basis_size, INOUT(matrix_type
 	}
 
 	for (unsigned short b = 0; b < static_cast<unsigned short>(basis_size); ++b) {
-		unsigned short largest = 0;
-		unsigned short current_basis = 0;
+		unsigned short largest = max_value<unsigned short>::value;
+		unsigned short current_basis = max_value<unsigned short>::value;
 		value_type largest_value = value_type(0.0);
 
 		for (auto pr = rank_starts.equal_range(b); pr.first != pr.second; ++pr.first) {
@@ -326,7 +326,6 @@ bool satisfies_hager_zhang_delta_conditions(IN(limiting_value) v, const value_ty
 
 template<typename function_class>
 void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type deriv, IN(vector_type) direction) {
-	
 	constexpr value_type ϵ = value_type(0.000001); // range [0, inf) used in the approximate Wolfe conditions
 	constexpr value_type γ = value_type(0.66); // range (0, 1) determines when a bisection step is performed
 	
@@ -395,7 +394,9 @@ void update_with_derivitive_minimization_ls(IN(function_class) function, INOUT(s
 	auto ϵ_k = ϵ * abs(b_k.φ);
 	while (!satisfies_hager_zhang_conditions<δ_times_1000, σ_times_1000>(b_k, φ_a0, φ_prime_a0, ϵ_k)  && std::nextafter(a_k.at, max_value<value_type>::value) != b_k.at) {
 		const auto c_k_at = secant(a_k, b_k);
-		auto c_k = limiting_value(c_k_at, function.evaluate_at_with_derivative(variable_mapping, c_k_at, direction));
+		const auto c_k = ((c_k_at == a_k.at) | (c_k_at == b_k.at)) ?
+			limiting_value((a_k.at + b_k.at) * value_type(0.5), function.evaluate_at_with_derivative(variable_mapping, (a_k.at + b_k.at) * value_type(0.5), direction))
+			: limiting_value(c_k_at, function.evaluate_at_with_derivative(variable_mapping, c_k_at, direction));
 		if (c_k.φ_prime >= 0) {
 			b_k = c_k;
 		} else {
@@ -436,6 +437,18 @@ void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(
 		const auto denom = a_k.φ_prime - φ_prime_a0 + value_type(2) * d_2;
 		const value_type a_new_at = a_k.at - (a_k.at) * ((a_k.φ_prime + d_2 - d_1) / denom);
 		//const auto a_new = limiting_value(a_new_at, function.evaluate_at_with_derivative(variable_mapping, a_new_at, direction));
+
+#ifndef SAFETY_OFF
+		if (isnan(a_new_at)) {
+			std::string rstr = std::string("d_1: ") + fp_output_helper(d_1) + ", d_2: " + fp_output_helper(d_2) + "\n";
+			OutputDebugStringA(rstr.c_str());
+			rstr = std::string("a_k_at: ") + fp_output_helper(a_k.at) + ", a_k_phi: " + fp_output_helper(a_k.φ) + ", phi_prime_a_k:" + fp_output_helper(a_k.φ_prime) + "\n";
+			OutputDebugStringA(rstr.c_str());
+			rstr = std::string("phi_prime_a0: ") + fp_output_helper(φ_prime_a0) + ", phi_a0: " + fp_output_helper(φ_a0) + ", denom:" + fp_output_helper(denom) + "\n";
+			OutputDebugStringA(rstr.c_str());
+			abort();
+		}
+#endif // !SAFETY_OFF
 
 		if (a_k.at - a_new_at > value_type(0.9) * a_k.at || a_k.at - a_new_at < value_type(0.1) * a_k.at) {
 			const value_type a_new_at_b = value_type(0.5) * a_k.at;
@@ -499,6 +512,18 @@ void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector
 		const value_type b = multiplier * (a_k.at * a_k.at * a_k.at * m_2 - a_last.at * a_last.at * a_last.at * m_1);
 
 		value_type a_new_at = -b + sqrt(b * b - value_type(3.0) * a * φ_prime_a0) / (value_type(3.0) * a);
+
+#ifndef SAFETY_OFF
+		if (isnan(a_new_at)) {
+			std::string rstr = std::string("multiplier: ") + fp_output_helper(multiplier) + ", a_k_at: " + fp_output_helper(a_k.at) + ", a_k_last_at:" + fp_output_helper(a_last.at) + "\n";
+			OutputDebugStringA(rstr.c_str());
+			rstr = std::string("a: ") + fp_output_helper(a) + ", b: " + fp_output_helper(b) + ", phi_prime_a0:" + fp_output_helper(φ_prime_a0) + "\n";
+			OutputDebugStringA(rstr.c_str());
+			rstr = std::string("b * b: ") + fp_output_helper(b * b) + ", rest: " + fp_output_helper(value_type(3.0) * a * φ_prime_a0) + ", sqrt of:" + fp_output_helper(b * b - value_type(3.0) * a * φ_prime_a0) + "\n";
+			OutputDebugStringA(rstr.c_str());
+			abort();
+		}
+#endif // !SAFETY_OFF
 
 		a_last = a_k;
 
@@ -631,7 +656,7 @@ std::pair<value_type, size_t> derivitive_minimization_steepest_descent(IN(linear
 using reduced_gradient_to_direction_map_type = void(*)(const Eigen::Index, const Eigen::Index, IN(std::vector<var_mapping>), IN(rvector_type), INOUT(vector_type));
 
 template<typename function_class, ls_function_type<function_class> LINE_SEARCH, reduced_gradient_to_direction_map_type RG_MAP>
-void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts) {
+void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	const auto b_size = coeff.rows();
 	const auto full = coeff.cols();
 	const auto remainder = full - b_size;
@@ -698,12 +723,60 @@ void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping
 		if (lm_max.second == -1)
 			abort();
 #endif
-		const value_type m = (gradient * direction.transpose())(0,0);
+		const value_type m = (gradient * direction)(0,0);
+
+#ifndef SAFETY_OFF
+		if (m > value_type(0.0)) {
+			OutputDebugStringA("not a descent direction\n");
+
+			std::stringstream strm;
+			strm << "gradient: "  << gradient << "\n";
+			strm << "direction: " << direction.transpose() << "\n";
+			strm << "derivative: " << std::to_string(m) << "\n";
+
+			if (is_upper_triangular) {
+				strm << "upper triangular\n";
+				strm << "coeff: " << coeff << "\n";
+
+				reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+				caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
+
+				strm << "reduced_n_gradient: " << reduced_n_gradient << "\n";
+
+				direction.noalias() = e_vector::Zero(full);
+				RG_MAP(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+				strm << "direction_N: " << direction.transpose() << "\n";
+
+				calcuate_b_direction_ut(b_size, remainder, coeff, direction);
+
+				strm  << "direction_B: " << direction.transpose() << "\n";
+				OutputDebugStringA(strm.str().c_str());
+			} else {
+				OutputDebugStringA("not upper triangular\n");
+
+				reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+				caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
+
+				direction.noalias() = e_vector::Zero(full);
+				RG_MAP(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+				calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
+			}
+
+
+			abort();
+		}
+#endif // !SAFETY_OFF
+
 		LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
 
 #ifndef SAFETY_OFF
-		if (++iteration_count > 100)
-			abort();
+		if (++iteration_count > 50) {
+			OutputDebugStringA("too many iterations\n");
+			break;
+			//abort();
+		}
 #endif
 	} while (true);
 }
@@ -728,7 +801,7 @@ bool powell_restart_condition(size_t restart_count, size_t variable_count, IN(rv
 
 
 template<typename function_class, ls_function_type<function_class> LINE_SEARCH, reduced_gradient_to_direction_map_type RG_MAP, cg_function_type CG_FUNCTION, restart_conditions_type RESTART_FUNCTION>
-void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts) {
+void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 
 	const auto b_size = coeff.rows();
 	const auto full = coeff.cols();
@@ -821,7 +894,7 @@ void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<va
 		if (lm_max.second == -1)
 			abort();
 #endif
-		const value_type m = (gradient * direction.transpose())(0, 0);
+		const value_type m = (gradient * direction)(0, 0);
 		LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
 
 #ifndef SAFETY_OFF
@@ -831,12 +904,44 @@ void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<va
 	} while (true);
 }
 
-void sof_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts) {
+void sof_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	steepest_descent<sum_of_functions, update_with_hager_zhang_ls, calcuate_n_direction_steepest>(function, variable_mapping, coeff, rank_starts);
 }
 
-void sof_m_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_map<unsigned short, unsigned short>) rank_starts) {
+void sof_m_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	steepest_descent<sum_of_functions, update_with_hager_zhang_ls, calcuate_n_direction_mokhtar>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_dm_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_derivitive_minimization_ls, calcuate_n_direction_steepest>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_m_dm_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_derivitive_minimization_ls, calcuate_n_direction_mokhtar>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_bt_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_backtrack_ls, calcuate_n_direction_steepest>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_m_bt_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_backtrack_ls, calcuate_n_direction_mokhtar>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_int_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_interpolation_ls, calcuate_n_direction_steepest>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_m_int_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_interpolation_ls, calcuate_n_direction_mokhtar>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_dint_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_derivative_interpolation_ls, calcuate_n_direction_steepest>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_m_dint_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	steepest_descent<sum_of_functions, update_with_derivative_interpolation_ls, calcuate_n_direction_mokhtar>(function, variable_mapping, coeff, rank_starts);
 }
 
 void sum_of_functions::add_function(IN(std::function<value_type(const value_type*const)>) f, IN(std::function<value_type(const value_type*const, const value_type*const)>) f_p, IN(std::vector<unsigned short>) variables) {
