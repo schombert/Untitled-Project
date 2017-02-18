@@ -1199,6 +1199,7 @@ TEST(nlp, steepest_descent_b) {
 	ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
 }
 
+
 TEST(nlp, conjugate_gradient) {
 	sum_of_functions tf;
 	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
@@ -1232,4 +1233,240 @@ TEST(nlp, conjugate_gradient) {
 	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
 	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
 	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hz_dm_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hz_bt_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hz_int_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hz_dint_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hs_hz_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hs_dm_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hs_bt_conjugate_gradient(tf, v, coeff, ranks); // innaccurate for this case
+
+	ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
+	ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
+	ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
+	ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hs_int_conjugate_gradient(tf, v, coeff, ranks); // innaccurate for this case
+
+	ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
+	ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
+	ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
+	ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_hs_dint_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_pr_hz_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_pr_dm_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_pr_bt_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_pr_int_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_pr_dint_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_prp_hz_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_prp_dm_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_prp_bt_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_prp_int_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_prp_dint_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_fr_hz_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_fr_dm_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_fr_bt_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_fr_int_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+
+	v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+	sof_fr_dint_conjugate_gradient(tf, v, coeff, ranks);
+
+	EXPECT_FLOAT_EQ(1.0, v[0].current_value);
+	EXPECT_FLOAT_EQ(1.0, v[1].current_value);
+	EXPECT_FLOAT_EQ(2.4, v[2].current_value);
+	EXPECT_FLOAT_EQ(2.8, v[3].current_value);
+}
+/**/
+
+TEST(nlp, conjugate_gradient_b) {
+	sum_of_functions tf;
+	tf.add_function([](const value_type* at) {
+		return 2.0 * at[0] * at[0] + 2.0 * at[1] * at[1] - 2.0 * at[0] * at[1] - 4.0 * at[0] - 6.0 * at[1]; },
+		[](const value_type* at, const value_type* direction) {
+			return direction[0] * (4.0 * at[0] - 2.0 * at[1] - 4.0) + direction[1] * (4.0 * at[1] - 2.0 * at[0] - 6.0); },
+			{0, 1, 2, 3});
+
+	//_control87(_EM_INVALID | _EM_DENORMAL | _EM_ZERODIVIDE | _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INEXACT, _MCW_EM);
+
+	std::vector<var_mapping> v = {
+		var_mapping{0.0, 0},
+		var_mapping{0.0, 1},
+		var_mapping{2.0, 2},
+		var_mapping{5.0, 3}};
+
+	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 8), 2, 4);
+	coeff << 1, 1, 1, 0,
+		1, 5, 0, 1;
+
+
+	flat_multimap<unsigned short, unsigned short> ranks;
+	setup_rank_map(coeff, v, ranks);
+
+	sof_hz_conjugate_gradient(tf, v, coeff, ranks);
+
+	ASSERT_NEAR(35.0 / 31.0, v[0].current_value, 0.0001);
+	ASSERT_NEAR(24.0 / 31.0, v[1].current_value, 0.0001);
+	ASSERT_NEAR(3.0 / 31.0, v[2].current_value, 0.0001);
+	ASSERT_NEAR(0.0, v[3].current_value, 0.0001);
+
+	const auto eval = tf.evaluate_at(v);
+
+	v[0].current_value = 0.0; v[1].current_value = 0.0; v[2].current_value = 2.0; v[3].current_value = 5.0;
+
+	sof_pr_dint_conjugate_gradient(tf, v, coeff, ranks); // less accurate
+
+	ASSERT_NEAR(35.0 / 31.0, v[0].current_value, 0.001);
+	ASSERT_NEAR(24.0 / 31.0, v[1].current_value, 0.001);
+	ASSERT_NEAR(3.0 / 31.0, v[2].current_value, 0.001);
+	ASSERT_NEAR(0.0, v[3].current_value, 0.001);
 }

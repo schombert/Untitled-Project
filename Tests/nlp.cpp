@@ -121,7 +121,7 @@ std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable
 		const auto indx = variable_mapping[i].mapped_index;
 		if (direction(indx) < value_type(0.0)) {
 			const auto lm = -variable_mapping[i].current_value / direction(indx);
-			if (lm < least) {
+			if (lm < least && lm > value_type(0.0)) {
 				least = lm;
 				index = static_cast<short>(i);
 			}
@@ -188,7 +188,7 @@ void maximize_basis(INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) va
 bool zero_element_in_basis(const Eigen::Index basis_size, IN(std::vector<var_mapping>) variable_mapping) {
 	const auto sz = variable_mapping.size();
 	for (size_t i = 0; i < sz; ++i) {
-		if ((variable_mapping[i].current_value == value_type(0.0)) & (variable_mapping[i].mapped_index < basis_size)) {
+		if ((variable_mapping[i].current_value <= value_type(0.0)) & (variable_mapping[i].mapped_index < basis_size)) {
 			return true;
 		}
 	}
@@ -803,7 +803,7 @@ bool basic_restart_condition(size_t restart_count, size_t variable_count, IN(rve
 }
 
 bool ensure_descent_direction(size_t restart_count, size_t variable_count, IN(rvector_type) new_cg, IN(rvector_type) previous_gradient, IN(rvector_type) current_gradient) {
-	return (restart_count >= variable_count) || (new_cg.transpose() * current_gradient)(0, 0) > 0.0;
+	return (restart_count >= variable_count) || (new_cg.transpose() * current_gradient)(0, 0) <= 0.0;
 }
 
 bool no_restart_condition(size_t restart_count, size_t variable_count, IN(rvector_type) new_cg, IN(rvector_type) previous_gradient, IN(rvector_type) current_gradient) {
@@ -814,10 +814,19 @@ bool powell_restart_condition(size_t restart_count, size_t variable_count, IN(rv
 	const auto d_g = -((new_cg.transpose() * current_gradient)(0, 0));
 	const auto current_sn = current_gradient.squaredNorm();
 	return (restart_count >= variable_count)
-		|| abs((previous_gradient.transpose() * current_gradient)(0,0)) >= value_type(0.2) * current_sn
+		|| abs((previous_gradient.transpose() * current_gradient)(0,0)) >= value_type(0.2) * current_sn || d_g >= value_type(0.0)
 		|| (restart_count >= 2 && !(value_type(-1.2) * current_sn <= d_g && d_g <= value_type(-0.8) * current_sn));
 }
 
+value_type feasible_norm_squared(const Eigen::Index base, IN(std::vector<var_mapping>) variable_mapping, IN(rvector_type) reduced_n_gradient) {
+	value_type sum = value_type(0.0);
+	for (IN(auto) v : variable_mapping) {
+		if (v.mapped_index >= base && (0 != ((v.current_value > value_type(0.0)) | (reduced_n_gradient(v.mapped_index - base) < value_type(0.0))))) {
+			sum += reduced_n_gradient(v.mapped_index - base) * reduced_n_gradient(v.mapped_index - base);
+		}
+	}
+	return sum;
+}
 
 template<typename function_class, ls_function_type<function_class> LINE_SEARCH, cg_function_type CG_FUNCTION, restart_conditions_type RESTART_FUNCTION>
 void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
@@ -895,6 +904,17 @@ void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<va
 
 	//second + iteration
 	do {
+
+		/*
+		std::string rstr = std::string("iteration ") + std::to_string(iteration_count) + ":";
+		for (IN(auto) v : variable_mapping) {
+			rstr += ", ";
+			rstr += std::to_string(v.current_value);
+		}
+		rstr += "\n";
+		OutputDebugStringA(rstr.c_str());
+		/**/
+
 		if (conditional_maximize_basis(b_size, coeff, variable_mapping, rank_starts)) {
 			is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
 
@@ -945,18 +965,21 @@ void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<va
 			calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
 
 		// test for satisfaction
-		if (direction.squaredNorm() <= ϵ*ϵ)
+		if (feasible_norm_squared(b_size, variable_mapping, reduced_n_gradient) <= ϵ*ϵ)
 			break;
 
 		// perform line search, update solution
 		const auto lm_max = max_lambda(variable_mapping, direction);
 
 #ifndef SAFETY_OFF
-		if (lm_max.second == -1)
-			abort();
+	//	if (lm_max.second == -1)
+	//		abort();
 #endif
-		const value_type m = (gradient * direction)(0, 0);
-		LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
+		if (lm_max.second != -1) {
+			// otherwise : no feasible direction was produced
+			const value_type m = (gradient * direction)(0, 0);
+			LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
+		}
 
 #ifndef SAFETY_OFF
 		if (++iteration_count > 100)
@@ -975,6 +998,102 @@ cg_fletcher_reeves
 
 void sof_hz_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	conjugate_gradient_method<sum_of_functions, update_with_hager_zhang_ls, cg_hager_zhang, basic_restart_condition>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hz_dm_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivitive_minimization_ls, cg_hager_zhang, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hz_bt_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_backtrack_ls, cg_hager_zhang, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hz_int_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_interpolation_ls, cg_hager_zhang, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hz_dint_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivative_interpolation_ls, cg_hager_zhang, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hs_hz_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_hager_zhang_ls, cg_hestenes_stiefel, basic_restart_condition>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hs_dm_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivitive_minimization_ls, cg_hestenes_stiefel, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hs_bt_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_backtrack_ls, cg_hestenes_stiefel, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hs_int_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_interpolation_ls, cg_hestenes_stiefel, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_hs_dint_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivative_interpolation_ls, cg_hestenes_stiefel, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_pr_hz_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_hager_zhang_ls, cg_polak_ribiere, basic_restart_condition>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_pr_dm_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivitive_minimization_ls, cg_polak_ribiere, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_pr_bt_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_backtrack_ls, cg_polak_ribiere, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_pr_int_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_interpolation_ls, cg_polak_ribiere, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_pr_dint_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivative_interpolation_ls, cg_polak_ribiere, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_prp_hz_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_hager_zhang_ls, cg_polak_ribiere_plus, basic_restart_condition>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_prp_dm_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivitive_minimization_ls, cg_polak_ribiere_plus, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_prp_bt_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_backtrack_ls, cg_polak_ribiere_plus, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_prp_int_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_interpolation_ls, cg_polak_ribiere_plus, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_prp_dint_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivative_interpolation_ls, cg_polak_ribiere_plus, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_fr_hz_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_hager_zhang_ls, cg_fletcher_reeves, basic_restart_condition>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_fr_dm_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivitive_minimization_ls, cg_fletcher_reeves, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_fr_bt_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_backtrack_ls, cg_fletcher_reeves, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_fr_int_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_interpolation_ls, cg_fletcher_reeves, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_fr_dint_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	conjugate_gradient_method<sum_of_functions, update_with_derivative_interpolation_ls, cg_fletcher_reeves, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
 }
 
 void sof_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
