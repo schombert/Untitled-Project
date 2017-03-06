@@ -984,8 +984,6 @@ TEST(nlp, steepest_descent) {
 		[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
 		{3});
 
-	//_control87(_EM_INVALID | _EM_DENORMAL | _EM_ZERODIVIDE | _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INEXACT, _MCW_EM);
-
 	std::vector<var_mapping> v = {
 		var_mapping{2.0, 0},
 		var_mapping{0.0, 2},
@@ -1199,6 +1197,129 @@ TEST(nlp, steepest_descent_b) {
 	ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
 }
 
+
+TEST(nlp, steepest_descent_barrier) {
+	{
+		sum_of_functions_b tf;
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{0});
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{1});
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{2});
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{3});
+
+		std::vector<var_mapping> v = {
+			var_mapping{2.0, 0},
+			var_mapping{0.0, 2},
+			var_mapping{8.0, 1},
+			var_mapping{0.0, 3}};
+
+		matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 8), 2, 4);
+		coeff << 1, 0, 1, 0,
+			0, 1, 0, 2;
+		flat_multimap<unsigned short, unsigned short> ranks;
+		ranks.insert(std::pair<unsigned short, unsigned short>(0, 0));
+		ranks.insert(std::pair<unsigned short, unsigned short>(0, 1));
+		ranks.insert(std::pair<unsigned short, unsigned short>(1, 2));
+		ranks.insert(std::pair<unsigned short, unsigned short>(1, 3));
+
+
+		sof_hz_steepest_descent_b(tf, v, coeff, ranks);
+
+		ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
+		ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
+		ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
+		ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+
+		v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+
+		sof_dm_steepest_descent_b(tf, v, coeff, ranks);
+
+		ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
+		ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
+		ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
+		ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+
+		v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+
+		sof_bt_steepest_descent_b(tf, v, coeff, ranks); // failed -- too many iterations
+
+		ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
+		ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
+		ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
+		ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+
+		v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+
+		sof_int_steepest_descent_b(tf, v, coeff, ranks);  // failed -- too many iterations
+
+		ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
+		ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
+		ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
+		ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+
+		v[0].current_value = 2.0; v[1].current_value = 0.0; v[2].current_value = 8.0; v[3].current_value = 0.0;
+
+		sof_dint_steepest_descent_b(tf, v, coeff, ranks);
+
+		ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
+		ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
+		ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
+		ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+	}
+	{
+		sum_of_functions_b tf;
+		tf.add_function([](const value_type* at) {
+			return 2.0 * at[0] * at[0] + 2.0 * at[1] * at[1] - 2.0 * at[0] * at[1] - 4.0 * at[0] - 6.0 * at[1]; },
+			[](const value_type* at, const value_type* direction) {
+				return direction[0] * (4.0 * at[0] - 2.0 * at[1] - 4.0) + direction[1] * (4.0 * at[1] - 2.0 * at[0] - 6.0); },
+				{0, 1, 2, 3});
+
+		std::vector<var_mapping> v = {
+			var_mapping{0.0, 0},
+			var_mapping{0.0, 1},
+			var_mapping{2.0, 2},
+			var_mapping{5.0, 3}};
+
+		matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 8), 2, 4);
+		coeff << 1, 1, 1, 0,
+			1, 5, 0, 1;
+
+		flat_multimap<unsigned short, unsigned short> ranks;
+		setup_rank_map(coeff, v, ranks);
+
+		sof_hz_steepest_descent_b(tf, v, coeff, ranks);
+
+		ASSERT_NEAR(35.0 / 31.0, v[0].current_value, 0.0001);
+		ASSERT_NEAR(24.0 / 31.0, v[1].current_value, 0.0001);
+		ASSERT_NEAR(3.0 / 31.0, v[2].current_value, 0.0001);
+		ASSERT_NEAR(0.0, v[3].current_value, 0.0001);
+
+		const auto eval = tf.evaluate_at(v);
+
+		v[0].current_value = 0.0; v[1].current_value = 0.0; v[2].current_value = 2.0; v[3].current_value = 5.0;
+		sof_dm_steepest_descent_b(tf, v, coeff, ranks);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+
+		v[0].current_value = 0.0; v[1].current_value = 0.0; v[2].current_value = 2.0; v[3].current_value = 5.0;
+		sof_bt_steepest_descent_b(tf, v, coeff, ranks);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+
+		v[0].current_value = 0.0; v[1].current_value = 0.0; v[2].current_value = 2.0; v[3].current_value = 5.0;
+		sof_int_steepest_descent_b(tf, v, coeff, ranks);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+
+		v[0].current_value = 0.0; v[1].current_value = 0.0; v[2].current_value = 2.0; v[3].current_value = 5.0;
+		sof_dint_steepest_descent_b(tf, v, coeff, ranks);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+	}
+}
 
 TEST(nlp, conjugate_gradient) {
 	sum_of_functions tf;

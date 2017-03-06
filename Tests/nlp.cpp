@@ -119,71 +119,17 @@ std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable
 	const auto sz = variable_mapping.size();
 	for (size_t i = 0; i < sz; ++i) {
 		const auto indx = variable_mapping[i].mapped_index;
-		if (direction(indx) < value_type(0.0)) {
-			const auto lm = -variable_mapping[i].current_value / direction(indx);
-			if (lm < least && lm > value_type(0.0)) {
-				least = lm;
-				index = static_cast<short>(i);
-			}
+
+		const auto lm = -variable_mapping[i].current_value / direction(indx);
+		if ((lm < least) & (lm > value_type(0.0)) & (direction(indx) != value_type(0.0))) {
+			least = lm;
+			index = static_cast<short>(i);
 		}
 	}
 
 	return std::make_pair(least, index);
 }
 
-template<typename replacement_selection>
-void swap_base(INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(std::vector<unsigned short>) rank_starts, const Eigen::Index to_replace) {
-	const auto first_of_rank = rank_starts[to_replace];
-	const auto last_of_rank = rank_starts[to_replace + 1];
-
-	size_t selected_replacement = replacement_selection::pick_best(variable_mapping, first_of_rank, last_of_rank);
-	const auto replacement_index = variable_mapping[selected_replacement].mapped_index;
-	coeff.col(to_replace).swap(coeff.col(replacement_index));
-
-	for (size_t i = rank_range.first; i != rank_range.second; ++i) {
-		if (variable_mapping[i].mapped_index == to_replace) {
-			variable_mapping[i].mapped_index = replacement_index;
-			break;
-		}
-	}
-	variable_mapping[selected_replacement].mapped_index = to_replace;
-}
-
-void maximize_basis(INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(std::vector<unsigned short>) rank_starts) {
-	const auto last_rank = rank_starts.size() - 1;
-	unsigned short current_rank = 0;
-	unsigned short rank_end = rank_starts[1];
-	unsigned short largest = 0;
-	value_type largest_value = value_type(0.0);
-	unsigned short basis = 0;
-
-	for (unsigned short current_position = 0; true; ++current_position) {
-		if (current_position == rank_end) {
-			if (largest != basis) {
-				const auto largest_index = variable_mapping[largest].mapped_index;
-				coeff.col(current_rank).swap(coeff.col(largest_index));
-				variable_mapping[largest].mapped_index = current_rank;
-				variable_mapping[basis].mapped_index = largest_index;
-			}
-
-			++current_rank;
-
-			if (current_rank >= last_rank)
-				break;
-
-			rank_end = rank_starts[current_rank+1];
-			largest = current_position;
-			largest_value = value_type(0.0);
-		}
-		if (variable_mapping[current_position].mapped_index == current_rank) {
-			basis = current_position;
-		}
-		if (variable_mapping[current_position].current_value > largest_value) {
-			largest_value = variable_mapping[current_position].current_value;
-			largest = current_position;
-		}
-	}
-}
 
 bool zero_element_in_basis(const Eigen::Index basis_size, IN(std::vector<var_mapping>) variable_mapping) {
 	const auto sz = variable_mapping.size();
@@ -237,6 +183,44 @@ bool conditional_maximize_basis(const Eigen::Index basis_size, INOUT(matrix_type
 	}
 
 	return true;
+}
+
+bool singular_column(const Eigen::Index basis_size, const Eigen::Index target_column, const Eigen::Index target_row, INOUT(matrix_type) coeff) {
+	for (Eigen::Index i = 0; i < basis_size; ++i) {
+		if ((coeff(i, target_column) != value_type(0.0)) & (i != target_row)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void optimize_basis(const Eigen::Index basis_size, INOUT(matrix_type) coeff, INOUT(std::vector<var_mapping>) variable_mapping, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	const auto sz = variable_mapping.size();
+
+	for (unsigned short b = 0; b < static_cast<unsigned short>(basis_size); ++b) {
+		unsigned short best_fit = max_value<unsigned short>::value;
+		unsigned short current_basis = max_value<unsigned short>::value;
+		value_type best_value = value_type(0.0);
+
+		for (auto pr = rank_starts.equal_range(b); pr.first != pr.second; ++pr.first) {
+			const auto indx = pr.first->second;
+			const auto column = variable_mapping[indx].mapped_index;
+			if (singular_column(basis_size, column, b, coeff) && abs(value_type(1.0) - coeff(b, column)) <= abs(value_type(1.0) - best_value)) {
+				best_fit = indx;
+				best_value = coeff(b, column);
+			}
+			if (variable_mapping[indx].mapped_index == b) {
+				current_basis = indx;
+			}
+		}
+
+		if (best_fit != max_value<unsigned short>::value) {
+			const auto best_index = variable_mapping[best_fit].mapped_index;
+			coeff.col(b).swap(coeff.col(best_index));
+			variable_mapping[best_fit].mapped_index = b;
+			variable_mapping[current_basis].mapped_index = best_index;
+		}
+	}
 }
 
 struct limiting_value {
@@ -796,6 +780,136 @@ void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping
 	} while (true);
 }
 
+template<typename function_class, ls_function_type<function_class> LINE_SEARCH>
+void barrier_steepest_descent(INOUT(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	const auto b_size = coeff.rows();
+	const auto full = coeff.cols();
+	const auto remainder = full - b_size;
+
+	constexpr value_type ϵ = value_type(0.000001); // range [0, inf)
+
+	rvector_type gradient((value_type*)_alloca(full * sizeof(value_type)), full);
+	vector_type direction((value_type*)_alloca(full * sizeof(value_type)), full);
+	rvector_type reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+
+	optimize_basis(b_size, coeff, variable_mapping, rank_starts);
+
+	matrix_type LU_store((value_type*)_alloca(sizeof(value_type) * b_size * b_size), b_size, b_size);
+	LU_store = coeff.leftCols(b_size);
+	Eigen::PartialPivLU<Eigen::Ref<matrix_type>> LU_decomp(LU_store);
+
+	const bool is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
+	function.μ = 1.0;
+
+
+#ifndef SAFETY_OFF
+	size_t iteration_count = 0;
+#endif
+
+	//inside iteration
+	do {
+		gradient.noalias() = e_row_vector::Zero(full);
+		function.gradient_at(variable_mapping, gradient);
+
+		if (is_upper_triangular) {
+			reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+			caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
+
+			direction.noalias() = e_vector::Zero(full);
+			calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+			calcuate_b_direction_ut(b_size, remainder, coeff, direction);
+		} else {
+			reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+			caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
+
+			direction.noalias() = e_vector::Zero(full);
+			calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+			calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
+		}
+
+		// test for satisfaction
+		if (direction.squaredNorm() <= ϵ*ϵ) {
+			//test for bounds satisfaction
+			bool bounds_satisfied = true;
+			for (IN(auto) v : variable_mapping) {
+				bounds_satisfied &= (v.current_value > -ϵ);
+			}
+
+			if (bounds_satisfied) {
+				break;
+			} else {
+				function.μ *= value_type(10.0);
+				continue; //reset with greater μ
+			}
+		}
+
+		// perform line search, update solution
+		const auto lm_max = max_lambda(variable_mapping, direction);
+
+#ifndef SAFETY_OFF
+		if (lm_max.second == -1)
+			abort();
+#endif
+		const value_type m = (gradient * direction)(0, 0);
+
+#ifndef SAFETY_OFF
+		if (m > value_type(0.0)) {
+			OutputDebugStringA("not a descent direction\n");
+
+			std::stringstream strm;
+			strm << "gradient: " << gradient << "\n";
+			strm << "direction: " << direction.transpose() << "\n";
+			strm << "derivative: " << std::to_string(m) << "\n";
+
+			if (is_upper_triangular) {
+				strm << "upper triangular\n";
+				strm << "coeff: " << coeff << "\n";
+
+				reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+				caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
+
+				strm << "reduced_n_gradient: " << reduced_n_gradient << "\n";
+
+				direction.noalias() = e_vector::Zero(full);
+				calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+				strm << "direction_N: " << direction.transpose() << "\n";
+
+				calcuate_b_direction_ut(b_size, remainder, coeff, direction);
+
+				strm << "direction_B: " << direction.transpose() << "\n";
+				OutputDebugStringA(strm.str().c_str());
+			} else {
+				OutputDebugStringA("not upper triangular\n");
+
+				reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+				caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
+
+				direction.noalias() = e_vector::Zero(full);
+				calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
+
+				calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
+			}
+
+
+			abort();
+		}
+#endif // !SAFETY_OFF
+
+		LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
+
+#ifndef SAFETY_OFF
+		if (++iteration_count > 50) {
+			OutputDebugStringA("too many iterations\n");
+			break;
+			//abort();
+		}
+#endif
+	} while (true);
+}
+
 using restart_conditions_type = bool(*)(size_t, size_t, IN(rvector_type), IN(rvector_type), IN(rvector_type));
 
 bool basic_restart_condition(size_t restart_count, size_t variable_count, IN(rvector_type) new_cg, IN(rvector_type) previous_gradient, IN(rvector_type) current_gradient) {
@@ -1136,6 +1250,28 @@ void sof_m_dint_steepest_descent(IN(sum_of_functions) function, INOUT(std::vecto
 	steepest_descent<sum_of_functions, update_with_derivative_interpolation_ls, calcuate_n_direction_mokhtar>(function, variable_mapping, coeff, rank_starts);
 }
 
+
+void sof_hz_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	barrier_steepest_descent<sum_of_functions_b, update_with_hager_zhang_ls>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_dm_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	barrier_steepest_descent<sum_of_functions_b, update_with_derivitive_minimization_ls>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_bt_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	barrier_steepest_descent<sum_of_functions_b, update_with_backtrack_ls>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_int_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	barrier_steepest_descent<sum_of_functions_b, update_with_interpolation_ls>(function, variable_mapping, coeff, rank_starts);
+}
+
+void sof_dint_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	barrier_steepest_descent<sum_of_functions_b, update_with_derivative_interpolation_ls>(function, variable_mapping, coeff, rank_starts);
+}
+
+
 void sum_of_functions::add_function(IN(std::function<value_type(const value_type*const)>) f, IN(std::function<value_type(const value_type*const, const value_type*const)>) f_p, IN(std::vector<unsigned short>) variables) {
 	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
 	unsigned short fnum = static_cast<unsigned short>(functions.size());
@@ -1288,4 +1424,59 @@ std::pair<value_type, value_type> sum_of_functions::evaluate_at_with_derivative(
 	f_sum += functions[current_function](location);
 
 	return std::make_pair(f_sum, deriv_sum);
+}
+
+value_type sum_of_functions_b::evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const {
+	auto eval = sum_of_functions::evaluate_at(variable_mapping);
+	for (IN(auto) v : variable_mapping) {
+		if (v.current_value < value_type(0.0)) {
+			eval += v.current_value * v.current_value * μ;
+		}
+	}
+	return eval;
+}
+
+void sum_of_functions_b::gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const {
+	sum_of_functions::gradient_at(variable_mapping, gradient);
+	for (IN(auto) v : variable_mapping) {
+		if (v.current_value < value_type(0.0)) {
+			gradient(v.mapped_index) += v.current_value * value_type(2.0) * μ;
+		}
+	}
+}
+
+value_type sum_of_functions_b::evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
+	auto sum = sum_of_functions::evaluate_at(variable_mapping, lambda, direction);
+	for (IN(auto) v : variable_mapping) {
+		const auto actual_value = v.current_value + lambda *  direction(v.mapped_index);
+		if (actual_value < value_type(0.0)) {
+			sum += actual_value * actual_value * μ;
+		}
+	}
+	return sum;
+}
+
+value_type sum_of_functions_b::gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
+	auto sum = sum_of_functions::gradient_at(variable_mapping, lambda, direction);
+	for (IN(auto) v : variable_mapping) {
+		const auto direction_component = direction(v.mapped_index);
+		const auto actual_value = v.current_value + lambda *  direction_component;
+		if (actual_value < value_type(0.0)) {
+			sum += direction_component * actual_value * value_type(2.0) * μ;
+		}
+	}
+	return sum;
+}
+
+std::pair<value_type, value_type> sum_of_functions_b::evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
+	auto rpair = sum_of_functions::evaluate_at_with_derivative(variable_mapping, lambda, direction);
+	for (IN(auto) v : variable_mapping) {
+		const auto direction_component = direction(v.mapped_index);
+		const auto actual_value = v.current_value + lambda *  direction_component;
+		if (actual_value < value_type(0.0)) {
+			rpair.first += actual_value * actual_value * μ;
+			rpair.second += direction_component * actual_value * value_type(2.0) * μ;
+		}
+	}
+	return rpair;
 }
