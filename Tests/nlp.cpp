@@ -146,7 +146,7 @@ void setup_rank_map(IN(matrix_type) coeff, IN(std::vector<var_mapping>) variable
 	const auto sz = variable_mapping.size();
 	for (size_t i = 0; i < sz; ++i) {
 		for (Eigen::Index j = 0; j < rows; ++j) {
-			if (coeff(variable_mapping[i].mapped_index, j) != value_type(0.0)) {
+			if (coeff(j, variable_mapping[i].mapped_index) != value_type(0.0)) {
 				rank_starts.insert(std::make_pair(static_cast<unsigned short>(j), static_cast<unsigned short>(i)));
 			}
 		}
@@ -1272,7 +1272,7 @@ void sof_dint_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::
 }
 
 
-void sum_of_functions::add_function(IN(std::function<value_type(const value_type*const)>) f, IN(std::function<value_type(const value_type*const, const value_type*const)>) f_p, IN(std::vector<unsigned short>) variables) {
+void sum_of_functions::add_function(IN(std::function<value_type(const value_type*const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::vector<unsigned short>) variables) {
 	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
 	unsigned short fnum = static_cast<unsigned short>(functions.size());
 	for (const auto v : variables) {
@@ -1280,6 +1280,32 @@ void sum_of_functions::add_function(IN(std::function<value_type(const value_type
 	}
 	functions.push_back(f);
 	function_derivatives.push_back(f_p);
+	combined_functions.emplace_back([f_p, f](const value_type* const a, const value_type* const b) { return std::make_pair(f(a),f_p(a,b)); });
+}
+
+void sum_of_functions::add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables) {
+	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
+	unsigned short fnum = static_cast<unsigned short>(functions.size());
+	for (const auto v : variables) {
+		variable_map.emplace_back(fnum, v);
+	}
+	functions.push_back(f);
+	function_derivatives.push_back(f_p);
+	combined_functions.push_back(cf);
+}
+
+void sum_of_functions::add_function(IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables) {
+	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
+	unsigned short fnum = static_cast<unsigned short>(functions.size());
+	for (const auto v : variables) {
+		variable_map.emplace_back(fnum, v);
+	}
+	combined_functions.push_back(cf);
+	functions.emplace_back([cf, sz = variables.size()](const value_type* const a) {
+		IN_P(value_type) space = (value_type*)_alloca(sz * sizeof(value_type));
+		memset(space, 0, sz * sizeof(value_type));
+		return cf(a, space).first; });
+	function_derivatives.emplace_back([cf](const value_type* const a, const value_type* const b) { return cf(a,b).second; });
 }
 
 value_type sum_of_functions::evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const {
@@ -1406,9 +1432,10 @@ std::pair<value_type, value_type> sum_of_functions::evaluate_at_with_derivative(
 
 	for (IN(auto) pr : variable_map) {
 		if (pr.first != current_function) {
-			deriv_sum += function_derivatives[current_function](location, direction_a);
-			f_sum += functions[current_function](location);
-
+			const auto cf_r = combined_functions[current_function](location, direction_a);
+			f_sum += cf_r.first;
+			deriv_sum += cf_r.second;
+			
 			current_function = pr.first;
 			array_index = 0;
 		}
@@ -1420,8 +1447,9 @@ std::pair<value_type, value_type> sum_of_functions::evaluate_at_with_derivative(
 		++array_index;
 	}
 
-	deriv_sum += function_derivatives[current_function](location, direction_a);
-	f_sum += functions[current_function](location);
+	const auto cf_r = combined_functions[current_function](location, direction_a);
+	f_sum += cf_r.first;
+	deriv_sum += cf_r.second;
 
 	return std::make_pair(f_sum, deriv_sum);
 }

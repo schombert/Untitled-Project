@@ -50,6 +50,9 @@
     <ClInclude Include="nlp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="utility_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Tests.rc">

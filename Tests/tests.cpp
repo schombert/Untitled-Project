@@ -13,6 +13,7 @@
 #include "fp.h"
 #include "..\\uigeneration\\fileparsing_v2.h"
 #include "nlp.h"
+#include "utility_functions.h"
 
 TEST(fp_tests, basic_tests) {
 	EXPECT_EQ(std_fp::from_double(1.5)*std_fp::from_int(2), std_fp::from_int(3));
@@ -1590,4 +1591,46 @@ TEST(nlp, conjugate_gradient_b) {
 	ASSERT_NEAR(24.0 / 31.0, v[1].current_value, 0.001);
 	ASSERT_NEAR(3.0 / 31.0, v[2].current_value, 0.001);
 	ASSERT_NEAR(0.0, v[3].current_value, 0.001);
+}
+
+TEST(nlp, with_utility_functions) {
+	sum_of_functions tf;
+	tf.add_function_t(saving_valuation_set(0.1), {0});
+	tf.add_function_t(saving_valuation_set(0.2), {1});
+	tf.add_function_t(voting_contest_set(5, -1, 9, 1, 2, 3), {3});
+	tf.add_function_t(military_contest_set(4, -6, 0.1, 10), {4, 5});
+
+	std::vector<var_mapping> v = {
+		var_mapping{10.0, 0}, // saved money
+		var_mapping{3.0, 1}, // saved votes
+		var_mapping{5.0, 2}, // saved troops
+		var_mapping{0.0, 3}, // qty used for vote
+		var_mapping{0.0, 4}, // money in war
+		var_mapping{0.0, 5}, // troops in war
+		var_mapping{0.0, 6}, // money -> troops
+		var_mapping{0.0, 7}, // money -> votes
+		var_mapping{0.0, 8}}; // votes -> money
+
+	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 3 * 9), 3, 9);
+	coeff <<	1, 0, 0, 0, 1, 0, 1, 5, -4,
+				0, 1, 0, 1, 0, 0, 0, -1, 1, 
+				0, 0, 1, 0, 0, 1, -10, 0, 0;
+
+	flat_multimap<unsigned short, unsigned short> ranks;
+	setup_rank_map(coeff, v, ranks);
+
+	sof_hz_steepest_descent(tf, v, coeff, ranks);
+
+	std::string result;
+	result += "saved money: " + std::to_string(v[0].current_value) + "\n";
+	result += "saved votes: " + std::to_string(v[1].current_value) + "\n";
+	result += "saved troops: " + std::to_string(v[2].current_value) + "\n";
+	result += "qty used for vote: " + std::to_string(v[3].current_value) + "\n";
+	result += "money in war: " + std::to_string(v[4].current_value) + "\n";
+	result += "troops in war: " + std::to_string(v[5].current_value) + "\n";
+	result += "money -> troops: " + std::to_string(v[6].current_value) + "\n";
+	result += "money -> votes: " + std::to_string(v[7].current_value) + "\n";
+	result += "votes -> money: " + std::to_string(v[8].current_value) + "\n";
+	result += "current evaluation: " + std::to_string(tf.evaluate_at(v)) + "\n";
+	OutputDebugStringA(result.c_str());
 }

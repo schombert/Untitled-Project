@@ -54,10 +54,17 @@ private:
 	std::vector<std::pair<unsigned short, unsigned short>> variable_map;
 	std::vector<std::function<value_type(const value_type* const)>> functions;
 	std::vector<std::function<value_type(const value_type* const, const value_type* const)>> function_derivatives;
+	std::vector<std::function<std::pair<value_type,value_type>(const value_type* const, const value_type* const)>> combined_functions;
 	unsigned int max_function_size;
 public:
 	sum_of_functions() : max_function_size(0) {};
 	void add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::vector<unsigned short>) variables);
+	void add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables);
+	template<typename FT>
+	void add_function_t(IN(FT) ft, IN(std::vector<unsigned short>) variables) {
+		add_function(std::get<0>(ft), std::get<1>(ft), std::get<2>(ft), variables);
+	}
+	void add_function(IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables);
 	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const;
 	void gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const;
 	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;

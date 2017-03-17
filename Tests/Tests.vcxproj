@@ -148,6 +148,7 @@
       <CallingConvention>VectorCall</CallingConvention>
       <AdditionalOptions>/DBOOST_ALL_NO_LIB %(AdditionalOptions)</AdditionalOptions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -173,6 +174,7 @@
     <ClInclude Include="nlp.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="test_helpers.h" />
+    <ClInclude Include="utility_functions.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCL\CCL.vcxproj">
