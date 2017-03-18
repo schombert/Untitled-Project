@@ -15,6 +15,14 @@ inline T soft_min(const T x, const T y) {
 	return minimum - log1p(exp(minimum - maximum));
 }
 
+inline double nan_guard_min_pos(const double inv) {
+	return std::isfinite(inv) ? inv : std::numeric_limits<double>::min();
+}
+
+inline double nan_guard_min_neg(const double inv) {
+	return std::isfinite(inv) ? inv : -std::numeric_limits<double>::min();
+}
+
 inline auto military_contest(double v_success, double v_failure, double force_cost, double e_force_quanity) {
 	constexpr double k_value = 4.0;
 	return [=](const IN_P(double) var) {// var[0] = force_quantity, var[1] = money
@@ -29,8 +37,8 @@ inline auto military_contest_deriv(double v_success, double v_failure, double fo
 		const auto mv = soft_min<4>(var[0], var[1] / force_cost) / k_value;
 		const auto common_term = -e_force_quanity * (v_success - v_failure) / pow(mv - e_force_quanity, 2.0);
 		const auto common_difference = k_value * (var[1] / force_cost - var[0]);
-		const auto deriv_1 = common_term / (1 + exp(-common_difference));
-		const auto deriv_2 = common_term / (force_cost * (1 + exp(common_difference)));
+		const auto deriv_1 = nan_guard_min_neg(common_term / (1 + exp(-common_difference)));
+		const auto deriv_2 = nan_guard_min_neg(common_term / (force_cost * (1 + exp(common_difference))));
 		return direction[0] * deriv_1 + direction[1] * deriv_2;
 	};
 }
@@ -41,8 +49,8 @@ inline auto military_contest_combined(double v_success, double v_failure, double
 		const auto mv = soft_min<4>(var[0], var[1] / force_cost) / k_value;
 		const auto common_term = -e_force_quanity * (v_success - v_failure) / pow(mv - e_force_quanity, 2.0);
 		const auto common_difference = k_value * (var[1] / force_cost - var[0]);
-		const auto deriv_1 = common_term / (1 + exp(-common_difference));
-		const auto deriv_2 = common_term / (force_cost * (1 + exp(common_difference)));
+		const auto deriv_1 = nan_guard_min_neg(common_term / (1 + exp(-common_difference)));
+		const auto deriv_2 = nan_guard_min_neg(common_term / (force_cost * (1 + exp(common_difference))));
 		return std::make_pair((-v_success * mv + -v_failure * e_force_quanity) / (mv + e_force_quanity),
 			direction[0] * deriv_1 + direction[1] * deriv_2);
 	};

@@ -130,6 +130,25 @@ std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable
 	return std::make_pair(least, index);
 }
 
+std::pair<value_type, short> max_lambda_tail(const Eigen::Index start, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(vector_type) direction) {
+	short index = -1;
+	value_type least = max_value<value_type>::value;
+
+	const auto sz = variable_mapping.size();
+	for (size_t i = 0; i < sz; ++i) {
+		const auto indx = variable_mapping[i].mapped_index;
+		if (indx > start) {
+			const auto lm = -variable_mapping[i].current_value / direction(indx);
+			if ((lm < least) & (lm > value_type(0.0)) & (direction(indx) != value_type(0.0))) {
+				least = lm;
+				index = static_cast<short>(i);
+			}
+		}
+	}
+
+	return std::make_pair(least, index);
+}
+
 
 bool zero_element_in_basis(const Eigen::Index basis_size, IN(std::vector<var_mapping>) variable_mapping) {
 	const auto sz = variable_mapping.size();
@@ -187,7 +206,7 @@ bool conditional_maximize_basis(const Eigen::Index basis_size, INOUT(matrix_type
 
 bool singular_column(const Eigen::Index basis_size, const Eigen::Index target_column, const Eigen::Index target_row, INOUT(matrix_type) coeff) {
 	for (Eigen::Index i = 0; i < basis_size; ++i) {
-		if ((coeff(i, target_column) != value_type(0.0)) & (i != target_row)) {
+		if ((coeff(i, target_column) != value_type(0.0)) == (i != target_row)) {
 			return false;
 		}
 	}
@@ -257,6 +276,8 @@ std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(functio
 				return std::make_pair(a_temp, b_temp);
 			a_temp = d;
 		} else {
+			if (d_at == b_temp.at) // to catch zero interval
+				return std::make_pair(a_temp, b_temp);
 			b_temp = d;
 		}
 	}
@@ -408,7 +429,7 @@ void update_with_derivitive_minimization_ls(IN(function_class) function, INOUT(s
 	for (size_t i = 0; i < sz; ++i) {
 		variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * b_k.at;
 	}
-	if (b_k.at == max_lambda)
+	if ((b_k.at == max_lambda) & (max_index != -1))
 		variable_mapping[max_index].current_value = value_type(0.0);
 }
 
@@ -425,7 +446,8 @@ void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(
 		for (size_t i = 0; i < sz; ++i) {
 			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * max_lambda;
 		}
-		variable_mapping[max_index].current_value = value_type(0.0);
+		if(max_index != -1)
+			variable_mapping[max_index].current_value = value_type(0.0);
 		return;
 	}
 
@@ -480,7 +502,8 @@ void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector
 		for (size_t i = 0; i < sz; ++i) {
 			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * max_lambda;
 		}
-		variable_mapping[max_index].current_value = value_type(0.0);
+		if(max_index != -1)
+			variable_mapping[max_index].current_value = value_type(0.0);
 		return;
 	}
 
@@ -555,7 +578,8 @@ void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var
 		for (size_t i = 0; i < sz; ++i) {
 			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * lambda;
 		}
-		variable_mapping[max_index].current_value = value_type(0.0);
+		if(max_index != -1)
+			variable_mapping[max_index].current_value = value_type(0.0);
 		return;
 	}
 
@@ -772,7 +796,7 @@ void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping
 
 #ifndef SAFETY_OFF
 		if (++iteration_count > 50) {
-			OutputDebugStringA("too many iterations\n");
+			OutputDebugStringA("too many iterations (sd)\n");
 			break;
 			//abort();
 		}
@@ -799,7 +823,7 @@ void barrier_steepest_descent(INOUT(function_class) function, INOUT(std::vector<
 	Eigen::PartialPivLU<Eigen::Ref<matrix_type>> LU_decomp(LU_store);
 
 	const bool is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
-	function.μ = 1.0;
+	function.μ = value_type(16.0);
 
 
 #ifndef SAFETY_OFF
@@ -840,18 +864,14 @@ void barrier_steepest_descent(INOUT(function_class) function, INOUT(std::vector<
 			if (bounds_satisfied) {
 				break;
 			} else {
-				function.μ *= value_type(10.0);
+				function.μ *= value_type(16.0);
 				continue; //reset with greater μ
 			}
 		}
 
 		// perform line search, update solution
-		const auto lm_max = max_lambda(variable_mapping, direction);
+		const auto lm_max = max_lambda_tail(b_size, variable_mapping, direction);
 
-#ifndef SAFETY_OFF
-		if (lm_max.second == -1)
-			abort();
-#endif
 		const value_type m = (gradient * direction)(0, 0);
 
 #ifndef SAFETY_OFF
@@ -898,11 +918,14 @@ void barrier_steepest_descent(INOUT(function_class) function, INOUT(std::vector<
 		}
 #endif // !SAFETY_OFF
 
-		LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
+		if(lm_max.second != -1)
+			LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, m, direction);
+		else
+			LINE_SEARCH(function, variable_mapping, std::max(m*m, value_type(1.0)), lm_max.second, m, direction);
 
 #ifndef SAFETY_OFF
-		if (++iteration_count > 50) {
-			OutputDebugStringA("too many iterations\n");
+		if (++iteration_count > 70) {
+			OutputDebugStringA("too many iterations (bsd)\n");
 			break;
 			//abort();
 		}

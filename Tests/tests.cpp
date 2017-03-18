@@ -1595,7 +1595,7 @@ TEST(nlp, conjugate_gradient_b) {
 
 TEST(nlp, with_utility_functions) {
 	sum_of_functions tf;
-	tf.add_function_t(saving_valuation_set(0.1), {0});
+	tf.add_function_t(saving_valuation_set(0.02), {0});
 	tf.add_function_t(saving_valuation_set(0.2), {1});
 	tf.add_function_t(voting_contest_set(5, -1, 9, 1, 2, 3), {3});
 	tf.add_function_t(military_contest_set(4, -6, 0.1, 10), {4, 5});
