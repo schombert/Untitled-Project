@@ -1223,14 +1223,14 @@ TEST(nlp, steepest_descent_barrier) {
 
 		matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 8), 2, 4);
 		coeff << 1, 0, 1, 0,
-			0, 1, 0, 2;
+				0, 1, 0, 2;
 		flat_multimap<unsigned short, unsigned short> ranks;
 		ranks.insert(std::pair<unsigned short, unsigned short>(0, 0));
 		ranks.insert(std::pair<unsigned short, unsigned short>(0, 1));
 		ranks.insert(std::pair<unsigned short, unsigned short>(1, 2));
 		ranks.insert(std::pair<unsigned short, unsigned short>(1, 3));
 
-
+		
 		sof_hz_steepest_descent_b(tf, v, coeff, ranks);
 
 		ASSERT_NEAR(1.0, v[0].current_value, 0.0001);
@@ -1273,6 +1273,7 @@ TEST(nlp, steepest_descent_barrier) {
 		ASSERT_NEAR(1.0, v[1].current_value, 0.0001);
 		ASSERT_NEAR(2.4, v[2].current_value, 0.0001);
 		ASSERT_NEAR(2.8, v[3].current_value, 0.0001);
+		/**/
 	}
 	{
 		sum_of_functions_b tf;
@@ -1595,31 +1596,31 @@ TEST(nlp, conjugate_gradient_b) {
 
 TEST(nlp, with_utility_functions) {
 	sum_of_functions tf;
-	tf.add_function_t(saving_valuation_set(0.02), {0});
+	tf.add_function_t(saving_valuation_set(0.1), {0});
 	tf.add_function_t(saving_valuation_set(0.2), {1});
 	tf.add_function_t(voting_contest_set(5, -1, 9, 1, 2, 3), {3});
-	tf.add_function_t(military_contest_set(4, -6, 0.1, 10), {4, 5});
+	tf.add_function_t(military_simple_contest_set(4, -6, 0.1, 10), {4});
 
 	std::vector<var_mapping> v = {
 		var_mapping{10.0, 0}, // saved money
 		var_mapping{3.0, 1}, // saved votes
 		var_mapping{5.0, 2}, // saved troops
 		var_mapping{0.0, 3}, // qty used for vote
-		var_mapping{0.0, 4}, // money in war
-		var_mapping{0.0, 5}, // troops in war
-		var_mapping{0.0, 6}, // money -> troops
-		var_mapping{0.0, 7}, // money -> votes
-		var_mapping{0.0, 8}}; // votes -> money
+		var_mapping{0.0, 4}, // money & troops in war
+		// var_mapping{0.0, 5}, // troops in war
+		var_mapping{0.0, 5}, // money -> troops
+		var_mapping{0.0, 6}, // money -> votes
+		var_mapping{0.0, 7}}; // votes -> money
 
-	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 3 * 9), 3, 9);
-	coeff <<	1, 0, 0, 0, 1, 0, 1, 5, -4,
-				0, 1, 0, 1, 0, 0, 0, -1, 1, 
-				0, 0, 1, 0, 0, 1, -10, 0, 0;
+	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 3 * 8), 3, 8);
+	coeff <<	1, 0, 0, 0, 1, 1, 5, -4,
+				0, 1, 0, 1, 0, 0, -1, 1, 
+				0, 0, 1, 0, 10, -10, 0, 0;
 
 	flat_multimap<unsigned short, unsigned short> ranks;
 	setup_rank_map(coeff, v, ranks);
 
-	sof_hz_steepest_descent(tf, v, coeff, ranks);
+	sof_hz_conjugate_gradient(tf, v, coeff, ranks);
 
 	std::string result;
 	result += "saved money: " + std::to_string(v[0].current_value) + "\n";
@@ -1627,10 +1628,10 @@ TEST(nlp, with_utility_functions) {
 	result += "saved troops: " + std::to_string(v[2].current_value) + "\n";
 	result += "qty used for vote: " + std::to_string(v[3].current_value) + "\n";
 	result += "money in war: " + std::to_string(v[4].current_value) + "\n";
-	result += "troops in war: " + std::to_string(v[5].current_value) + "\n";
-	result += "money -> troops: " + std::to_string(v[6].current_value) + "\n";
-	result += "money -> votes: " + std::to_string(v[7].current_value) + "\n";
-	result += "votes -> money: " + std::to_string(v[8].current_value) + "\n";
+	// result += "troops in war: " + std::to_string(v[5].current_value) + "\n";
+	result += "money -> troops: " + std::to_string(v[5].current_value) + "\n";
+	result += "money -> votes: " + std::to_string(v[6].current_value) + "\n";
+	result += "votes -> money: " + std::to_string(v[7].current_value) + "\n";
 	result += "current evaluation: " + std::to_string(tf.evaluate_at(v)) + "\n";
 	OutputDebugStringA(result.c_str());
 }

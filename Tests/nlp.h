@@ -74,11 +74,14 @@ public:
 
 class sum_of_functions_b : public sum_of_functions {
 public:
-	value_type μ;
+	value_type μ; // barrier multiplier
+	Eigen::Index n; // number of barriered variables
+	value_type* λ; // λ estimate
 
-	sum_of_functions_b() : μ(1.0) {};
+	sum_of_functions_b() : μ(1.0), n(0), λ(nullptr) {};
 	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const;
 	void gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const;
+	void un_modified_gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const;
 	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
 	value_type gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
 	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;

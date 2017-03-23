@@ -62,6 +62,22 @@ inline auto military_contest_set(double v_success, double v_failure, double forc
 		military_contest_combined(v_success, v_failure, force_cost, e_force_quanity));
 }
 
+inline auto military_simple_contest_set(double v_success, double v_failure, double force_cost, double e_force_quanity) {
+	return std::make_tuple([=](const IN_P(double) var) {
+			const auto fq = var[0] / force_cost;
+			const auto tfq = e_force_quanity + fq;
+			return (-v_success * fq + -v_failure * e_force_quanity) / tfq;
+		}, [=](const IN_P(double) var, const IN_P(double) direction) {
+			const auto fq = var[0] / force_cost;
+			const auto tfq = e_force_quanity + fq;
+			return (v_failure - v_success) * e_force_quanity * direction[0] / (tfq*tfq);
+		}, [=](const IN_P(double) var, const IN_P(double) direction) {
+			const auto fq = var[0] / force_cost;
+			const auto tfq = e_force_quanity + fq;
+			return std::make_pair((-v_success * fq + -v_failure * e_force_quanity) / tfq, (v_failure - v_success) * e_force_quanity * direction[0] / (tfq*tfq));
+		});
+}
+
 inline auto voting_contest(double v_success, double v_failure, double num_total, double num_negative, double num_positive, double num_player) {
 	constexpr double rt2 = 1.4142135623730950488016887242097;
 
