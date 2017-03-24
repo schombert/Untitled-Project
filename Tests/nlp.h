@@ -22,8 +22,52 @@ using matrix_type = Eigen::Map<e_matrix, Eigen::Aligned>;
 
 struct var_mapping {
 	value_type current_value;
+	static unsigned short get_index(IN(var_mapping) v, size_t i) {
+		return v.mapped_index;
+	}
 	unsigned short mapped_index;
 };
+
+template<typename T>
+inline unsigned short get_variable_index(IN(std::vector<var_mapping, T>) v, size_t i) {
+	return v[i].mapped_index;
+}
+template<typename T>
+inline size_t get_variable_index(IN(T), size_t i) {
+	return i;
+}
+
+template<typename T>
+inline size_t num_variables(IN(std::vector<var_mapping, T>) v) {
+	return v.size();
+}
+inline Eigen::Index num_variables(IN(vector_type) v) {
+	return v.size();
+}
+
+template<typename T>
+inline value_type get_nth_variable(IN(std::vector<var_mapping, T>) v, size_t i) {
+	return v[i].current_value;
+}
+inline value_type get_nth_variable(IN(vector_type) v, Eigen::Index i) {
+	return v(i);
+}
+
+template<typename T>
+inline void set_nth_variable(INOUT(std::vector<var_mapping, T>) v, size_t i, value_type e) {
+	v[i].current_value = e;
+}
+inline void set_nth_variable(INOUT(vector_type) v, Eigen::Index i, value_type e) {
+	v(i) = e;
+}
+
+template<typename T>
+inline void inc_nth_variable(INOUT(std::vector<var_mapping, T>) v, size_t i, value_type e) {
+	v[i].current_value += e;
+}
+inline void inc_nth_variable(INOUT(vector_type) v, Eigen::Index i, value_type e) {
+	v(i) += e;
+}
 
 class linear_test_function {
 private:
@@ -49,7 +93,8 @@ public:
 	}
 };
 
-class sum_of_functions {
+template<typename T>
+class sum_of_functions_t {
 private:
 	std::vector<std::pair<unsigned short, unsigned short>> variable_map;
 	std::vector<std::function<value_type(const value_type* const)>> functions;
@@ -57,7 +102,7 @@ private:
 	std::vector<std::function<std::pair<value_type,value_type>(const value_type* const, const value_type* const)>> combined_functions;
 	unsigned int max_function_size;
 public:
-	sum_of_functions() : max_function_size(0) {};
+	sum_of_functions_t() : max_function_size(0) {};
 	void add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::vector<unsigned short>) variables);
 	void add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables);
 	template<typename FT>
@@ -65,12 +110,201 @@ public:
 		add_function(std::get<0>(ft), std::get<1>(ft), std::get<2>(ft), variables);
 	}
 	void add_function(IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables);
-	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const;
-	void gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const;
-	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
-	value_type gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
-	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
+	value_type evaluate_at(IN(T) variable_mapping) const;
+	void gradient_at(IN(T) variable_mapping, INOUT(rvector_type) gradient) const;
+	value_type evaluate_at(IN(T) variable_mapping, value_type lambda, IN(vector_type) direction) const;
+	value_type gradient_at(IN(T) variable_mapping, value_type lambda, IN(vector_type) direction) const;
+	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(T) variable_mapping, value_type lambda, IN(vector_type) direction) const;
 };
+
+template<typename T>
+void sum_of_functions_t<T>::add_function(IN(std::function<value_type(const value_type*const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::vector<unsigned short>) variables) {
+	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
+	unsigned short fnum = static_cast<unsigned short>(functions.size());
+	for (const auto v : variables) {
+		variable_map.emplace_back(fnum, v);
+	}
+	functions.push_back(f);
+	function_derivatives.push_back(f_p);
+	combined_functions.emplace_back([f_p, f](const value_type* const a, const value_type* const b) { return std::make_pair(f(a), f_p(a, b)); });
+}
+
+template<typename T>
+void sum_of_functions_t<T>::add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables) {
+	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
+	unsigned short fnum = static_cast<unsigned short>(functions.size());
+	for (const auto v : variables) {
+		variable_map.emplace_back(fnum, v);
+	}
+	functions.push_back(f);
+	function_derivatives.push_back(f_p);
+	combined_functions.push_back(cf);
+}
+
+template<typename T>
+void sum_of_functions_t<T>::add_function(IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables) {
+	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
+	unsigned short fnum = static_cast<unsigned short>(functions.size());
+	for (const auto v : variables) {
+		variable_map.emplace_back(fnum, v);
+	}
+	combined_functions.push_back(cf);
+	functions.emplace_back([cf, sz = variables.size()](const value_type* const a) {
+		IN_P(value_type) space = (value_type*)_alloca(sz * sizeof(value_type));
+		memset(space, 0, sz * sizeof(value_type));
+		return cf(a, space).first; });
+	function_derivatives.emplace_back([cf](const value_type* const a, const value_type* const b) { return cf(a, b).second; });
+}
+
+template<typename T>
+value_type sum_of_functions_t<T>::evaluate_at(IN(T) variable_mapping) const {
+	IN_P(value_type) variable_store = (value_type*)_alloca(max_function_size * sizeof(value_type));
+	value_type current_sum = value_type(0.0);
+
+	unsigned short current_function = 0;
+	unsigned short array_index = 0;
+
+	for (IN(auto) pr : variable_map) {
+		if (pr.first != current_function) {
+			current_sum += functions[current_function](variable_store);
+			current_function = pr.first;
+			array_index = 0;
+		}
+		variable_store[array_index] = get_nth_variable(variable_mapping, pr.second);
+		++array_index;
+	}
+	current_sum += functions[current_function](variable_store);
+	return current_sum;
+}
+
+template<typename T>
+void sum_of_functions_t<T>::gradient_at(IN(T) variable_mapping, INOUT(rvector_type) gradient) const {
+	IN_P(value_type) location = (value_type*)_alloca(max_function_size * sizeof(value_type));
+	IN_P(value_type) direction = (value_type*)_alloca(max_function_size * sizeof(value_type));
+
+	const auto mx = variable_mapping.size();
+	for(size_t i = 0; i < mx; ++i) {
+		gradient(get_variable_index(variable_mapping, i)) = value_type(0.0);
+
+		unsigned short current_function = 0;
+		unsigned short array_index = 0;
+		bool touches_variable = false;
+
+		for (IN(auto) pr : variable_map) {
+			if (pr.first != current_function) {
+				if (touches_variable) {
+					gradient(get_variable_index(variable_mapping, i)) += function_derivatives[current_function](location, direction);
+					touches_variable = false;
+				}
+				current_function = pr.first;
+				array_index = 0;
+			}
+			if (pr.second == i) {
+				direction[array_index] = value_type(1.0);
+				location[array_index] = get_nth_variable(variable_mapping, pr.second);
+				touches_variable = true;
+			} else {
+				location[array_index] = get_nth_variable(variable_mapping, pr.second);
+				direction[array_index] = value_type(0.0);
+			}
+			++array_index;
+		}
+
+		if (touches_variable) {
+			gradient(get_variable_index(variable_mapping, i)) += function_derivatives[current_function](location, direction);
+		}
+	}
+}
+
+template<typename T>
+value_type sum_of_functions_t<T>::evaluate_at(IN(T) variable_mapping, value_type lambda, IN(vector_type) direction) const {
+	IN_P(value_type) variable_store = (value_type*)_alloca(max_function_size * sizeof(value_type));
+	value_type current_sum = value_type(0.0);
+
+	unsigned short current_function = 0;
+	unsigned short array_index = 0;
+
+	for (IN(auto) pr : variable_map) {
+		if (pr.first != current_function) {
+			current_sum += functions[current_function](variable_store);
+			current_function = pr.first;
+			array_index = 0;
+		}
+		variable_store[array_index] = get_nth_variable(variable_mapping, pr.second) + direction(get_variable_index(variable_mapping, pr.second)) * lambda;
+		++array_index;
+	}
+	current_sum += functions[current_function](variable_store);
+	return current_sum;
+}
+
+template<typename T>
+value_type sum_of_functions_t<T>::gradient_at(IN(T) variable_mapping, value_type lambda, IN(vector_type) direction) const {
+	IN_P(value_type) location = (value_type*)_alloca(max_function_size * sizeof(value_type));
+	IN_P(value_type) direction_a = (value_type*)_alloca(max_function_size * sizeof(value_type));
+
+	size_t outer_index = 0;
+	value_type sum = value_type(0.0);
+
+	unsigned short current_function = 0;
+	unsigned short array_index = 0;
+
+	for (IN(auto) pr : variable_map) {
+		if (pr.first != current_function) {
+			sum += function_derivatives[current_function](location, direction_a);
+
+			current_function = pr.first;
+			array_index = 0;
+		}
+
+		const auto dv = direction(get_variable_index(variable_mapping, pr.second));
+		location[array_index] = get_nth_variable(variable_mapping, pr.second) + dv * lambda;
+		direction_a[array_index] = dv;
+
+		++array_index;
+	}
+
+	sum += function_derivatives[current_function](location, direction_a);
+
+	return sum;
+}
+
+template<typename T>
+std::pair<value_type, value_type> sum_of_functions_t<T>::evaluate_at_with_derivative(IN(T) variable_mapping, value_type lambda, IN(vector_type) direction) const {
+	IN_P(value_type) location = (value_type*)_alloca(max_function_size * sizeof(value_type));
+	IN_P(value_type) direction_a = (value_type*)_alloca(max_function_size * sizeof(value_type));
+
+	size_t outer_index = 0;
+	value_type deriv_sum = value_type(0.0);
+	value_type f_sum = value_type(0.0);
+
+	unsigned short current_function = 0;
+	unsigned short array_index = 0;
+
+	for (IN(auto) pr : variable_map) {
+		if (pr.first != current_function) {
+			const auto cf_r = combined_functions[current_function](location, direction_a);
+			f_sum += cf_r.first;
+			deriv_sum += cf_r.second;
+
+			current_function = pr.first;
+			array_index = 0;
+		}
+
+		const auto dv = direction(get_variable_index(variable_mapping, pr.second));
+		location[array_index] = get_nth_variable(variable_mapping, pr.second) + dv * lambda;
+		direction_a[array_index] = dv;
+
+		++array_index;
+	}
+
+	const auto cf_r = combined_functions[current_function](location, direction_a);
+	f_sum += cf_r.first;
+	deriv_sum += cf_r.second;
+
+	return std::make_pair(f_sum, deriv_sum);
+}
+
+using sum_of_functions = sum_of_functions_t<std::vector<var_mapping>>;
 
 class sum_of_functions_b : public sum_of_functions {
 public:
@@ -79,13 +313,28 @@ public:
 	value_type* λ; // λ estimate
 
 	sum_of_functions_b() : μ(1.0), n(0), λ(nullptr) {};
-	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const;
+	value_type evaluate_at(IN(std::vector<var_mapping>) variable_mapping) const;
 	void gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const;
 	void un_modified_gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const;
-	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
+	value_type evaluate_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
 	value_type gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
 	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const;
 };
+
+class lm_sum_of_functions : public sum_of_functions_t<vector_type> {
+public:
+	value_type μ; // barrier multiplier
+	value_type* λ; // λ estimate
+
+	lm_sum_of_functions() : μ(0.5), λ(nullptr) {};
+	value_type evaluate_at(IN(vector_type) variables) const;
+	void gradient_at(IN(vector_type) variables, INOUT(rvector_type) gradient) const;
+	void un_modified_gradient_at(IN(vector_type) variables, INOUT(rvector_type) gradient) const;
+	value_type evaluate_at(IN(vector_type) variables, value_type lambda, IN(vector_type) direction) const;
+	value_type gradient_at(IN(vector_type) variables, value_type lambda, IN(vector_type) direction) const;
+	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(vector_type) variables, value_type lambda, IN(vector_type) direction) const;
+};
+
 
 void vector_times_ut_inverse(IN(rvector_type) vector, IN(matrix_type) coeff, INOUT(rvector_type) result);
 void ut_inverse_times_vector(IN(matrix_type) coeff, IN(vector_type) vector, INOUT(vector_type) result);
@@ -97,7 +346,8 @@ void calcuate_n_direction_mokhtar(const Eigen::Index b_size, const Eigen::Index 
 void calcuate_b_direction_ut(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, INOUT(vector_type) direction);
 void caclulate_reduced_n_gradient_LU(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu_decomposition, IN(rvector_type) gradient, INOUT(rvector_type) n_result);
 void calcuate_b_direction_LU(Eigen::Index rows, Eigen::Index remainder, IN(matrix_type) coeff, IN(Eigen::PartialPivLU<Eigen::Ref<matrix_type>>) lu_decomposition, INOUT(vector_type) direction);
-std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable_mapping, INOUT(vector_type) direction);
+std::pair<value_type, short> max_lambda(IN(std::vector<var_mapping>) variable_mapping, INOUT(vector_type) direction);
+std::pair<value_type, short> max_lambda(IN(vector_type) variables, INOUT(vector_type) direction);
 void setup_rank_map(IN(matrix_type) coeff, IN(std::vector<var_mapping>) variable_mapping, INOUT(flat_multimap<unsigned short, unsigned short>) rank_starts);
 
 std::pair<value_type, size_t> backtrack_linear_steepest_descent(IN(linear_test_function) func, value_type max_value);

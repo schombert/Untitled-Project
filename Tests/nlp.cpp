@@ -112,15 +112,16 @@ value_type cg_fletcher_reeves(IN(rvector_type) current_gradient, IN(rvector_type
 	return (current_gradient.squaredNorm()) / (prev_gradient.squaredNorm());
 }
 
-std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable_mapping, INOUT(vector_type) direction) {
+template<typename T>
+std::pair<value_type, short> _max_lambda(IN(T) variable_mapping, INOUT(vector_type) direction) {
 	short index = -1;
 	value_type least = max_value<value_type>::value;
 
-	const auto sz = variable_mapping.size();
-	for (size_t i = 0; i < sz; ++i) {
-		const auto indx = variable_mapping[i].mapped_index;
+	const auto sz = num_variables(variable_mapping);
+	for (decltype(num_variables(variable_mapping)) i = 0; i < sz; ++i) {
+		const auto indx = get_variable_index(variable_mapping, i);
 
-		const auto lm = -variable_mapping[i].current_value / direction(indx);
+		const auto lm = -get_nth_variable(variable_mapping, i) / direction(indx);
 		if ((lm < least) & (lm > value_type(0.0)) & (direction(indx) != value_type(0.0))) {
 			least = lm;
 			index = static_cast<short>(i);
@@ -130,15 +131,24 @@ std::pair<value_type, short> max_lambda(INOUT(std::vector<var_mapping>) variable
 	return std::make_pair(least, index);
 }
 
-std::pair<value_type, short> max_lambda_tail(const Eigen::Index start, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(vector_type) direction) {
+std::pair<value_type, short> max_lambda(IN(std::vector<var_mapping>) variable_mapping, INOUT(vector_type) direction) {
+	return _max_lambda(variable_mapping, direction);
+}
+
+std::pair<value_type, short> max_lambda(IN(vector_type) variables, INOUT(vector_type) direction) {
+	return _max_lambda(variables, direction);
+}
+
+template<typename T>
+std::pair<value_type, short> max_lambda_tail(const Eigen::Index start, IN(T) variable_mapping, INOUT(vector_type) direction) {
 	short index = -1;
 	value_type least = max_value<value_type>::value;
 
-	const auto sz = variable_mapping.size();
+	const auto sz = num_variables(variable_mapping);
 	for (size_t i = 0; i < sz; ++i) {
-		const auto indx = variable_mapping[i].mapped_index;
+		const auto indx = get_variable_index(variable_mapping, i);
 		if (indx > start) {
-			const auto lm = -variable_mapping[i].current_value / direction(indx);
+			const auto lm = -get_nth_variable(variable_mapping, i) / direction(indx);
 			if ((lm < least) & (lm > value_type(0.0)) & (direction(indx) != value_type(0.0))) {
 				least = lm;
 				index = static_cast<short>(i);
@@ -251,8 +261,8 @@ struct limiting_value {
 	limiting_value(value_type a, IN(std::pair<value_type, value_type>) b) : at(a), φ(b.first), φ_prime(b.second) {};
 };
 
-template<typename function_class>
-std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(vector_type) direction, IN(limiting_value) a, IN(limiting_value) b, IN(limiting_value) c, const value_type φ_zero, const value_type ϵ_k) {
+template<typename function_class, typename V>
+std::pair<limiting_value, limiting_value> hager_zhang_interval_update(IN(function_class) function, IN(V) variable_mapping, IN(vector_type) direction, IN(limiting_value) a, IN(limiting_value) b, IN(limiting_value) c, const value_type φ_zero, const value_type ϵ_k) {
 	constexpr value_type θ = value_type(0.5); // range (0, 1) used in the update rules when the potential intervals [a,c] or [c, b] violate the opposite slope condition
 	
 	if (c.at < a.at || c.at > b.at)
@@ -287,8 +297,8 @@ value_type secant(IN(limiting_value) a, IN(limiting_value) b) {
 	return b.φ_prime != a.φ_prime ? (a.at * b.φ_prime - b.at * a.φ_prime) / (b.φ_prime - a.φ_prime) : max_value<value_type>::value;
 }
 
-template<typename function_class>
-std::pair<limiting_value, limiting_value> hager_zhang_secant_step(IN(function_class) function, IN(std::vector<var_mapping>) variable_mapping, IN(vector_type) direction, IN(limiting_value) a, IN(limiting_value) b, const value_type φ_zero, const value_type ϵ_k) {
+template<typename function_class, typename V>
+std::pair<limiting_value, limiting_value> hager_zhang_secant_step(IN(function_class) function, IN(V) variable_mapping, IN(vector_type) direction, IN(limiting_value) a, IN(limiting_value) b, const value_type φ_zero, const value_type ϵ_k) {
 	const auto secant_at = secant(a, b);
 	const limiting_value c(secant_at, function.evaluate_at_with_derivative(variable_mapping, secant_at, direction));
 	const auto intermediate_interval = hager_zhang_interval_update(function, variable_mapping, direction, a, b, c, φ_zero, ϵ_k);
@@ -344,8 +354,36 @@ bool satisfies_hager_zhang_delta_conditions(IN(limiting_value) v, const value_ty
 		| (((value_type(2.0) * δ - value_type(1.0)) * φ_prime_zero >= v.φ_prime) & (v.φ <= φ_zero))); // approximate wolf condition 4.1: (2δ − 1) * φ_prime(0) ≥ φ_prime(α_k) ≥ σ * φ_prime(0)
 }
 
-template<typename function_class>
-void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_zero, const value_type φ_prime_zero, IN(vector_type) direction) {
+template<typename V>
+void adjust_variables(INOUT(V) variable_mapping, const value_type λ, IN(vector_type) direction) {
+	const auto sz = num_variables(variable_mapping);
+	for (decltype(num_variables(variable_mapping)) i = 0; i < sz; ++i) {
+		inc_nth_variable(variable_mapping, i, direction(get_variable_index(variable_mapping, i)) * λ);
+	}
+}
+
+template<typename V>
+void max_adjust_variables(INOUT(V) variable_mapping, IN(vector_type) direction, const value_type λ_max, const short max_index) {
+	const auto sz = num_variables(variable_mapping);
+	for (decltype(num_variables(variable_mapping)) i = 0; i < sz; ++i) {
+		inc_nth_variable(variable_mapping, i, direction(get_variable_index(variable_mapping, i)) * λ_max);
+	}
+	if (max_index != -1)
+		set_nth_variable(variable_mapping, max_index, value_type(0.0));
+}
+
+template<typename V>
+void adjust_variables(INOUT(V) variable_mapping, const value_type λ, IN(vector_type) direction, const value_type λ_max, const short max_index) {
+	const auto sz = num_variables(variable_mapping);
+	for (decltype(num_variables(variable_mapping)) i = 0; i < sz; ++i) {
+		inc_nth_variable(variable_mapping, i, direction(get_variable_index(variable_mapping, i)) * λ);
+	}
+	if ((λ == λ_max) & (max_index != -1))
+		set_nth_variable(variable_mapping, max_index, value_type(0.0));
+}
+
+template<typename function_class, typename V>
+void update_with_hager_zhang_ls(IN(function_class) function, INOUT(V) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_zero, const value_type φ_prime_zero, IN(vector_type) direction) {
 	constexpr value_type ϵ = value_type(0.000001); // range [0, inf) used in the approximate Wolfe conditions
 	constexpr value_type γ = value_type(0.66); // range (0, 1) determines when a bisection step is performed
 	
@@ -370,14 +408,7 @@ void update_with_hager_zhang_ls(IN(function_class) function, INOUT(std::vector<v
 
 	} while(!satisfies_hager_zhang_conditions<100,900>(b_k, φ_zero, φ_prime_zero, ϵ_k) & (std::nextafter(a_k.at, max_value<value_type>::value) < b_k.at)); // conditions not satisfied 
 
-	const auto least = b_k.at; // a_k.φ < b_k.φ ? a_k.at : b_k.at;
-	const auto sz = variable_mapping.size();
-	for (size_t i = 0; i < sz; ++i) {
-		variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * least;
-	}
-	if (least == max_lambda)
-		variable_mapping[max_index].current_value = value_type(0.0);
-	return;
+	adjust_variables(variable_mapping, b_k.at, direction, max_lambda, max_index);
 }
 
 std::string fp_output_helper(value_type f) {
@@ -387,8 +418,8 @@ std::string fp_output_helper(value_type f) {
 }
 
 
-template<typename function_class>
-void update_with_derivitive_minimization_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, const value_type max_lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
+template<typename function_class, typename V>
+void update_with_derivitive_minimization_ls(IN(function_class) function, INOUT(std::vector<V>) variable_mapping, const value_type max_lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
 	constexpr int δ_times_1000 = 100;
 	constexpr int σ_times_1000 = 900;
 	constexpr value_type ϵ = value_type(0.000001); // range [0, inf) used in the approximate Wolfe conditions
@@ -422,27 +453,17 @@ void update_with_derivitive_minimization_ls(IN(function_class) function, INOUT(s
 		ϵ_k = ϵ * abs(b_k.φ);
 	}
 
-	const auto sz = variable_mapping.size();
-	for (size_t i = 0; i < sz; ++i) {
-		variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * b_k.at;
-	}
-	if ((b_k.at == max_lambda) & (max_index != -1))
-		variable_mapping[max_index].current_value = value_type(0.0);
+	adjust_variables(variable_mapping, b_k.at, direction, max_lambda, max_index);
 }
 
-template<typename function_class>
-void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
+template<typename function_class, typename V>
+void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(std::vector<V>) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
 	constexpr value_type δ = value_type(0.1);
 
 	limiting_value a_k(max_lambda, function.evaluate_at_with_derivative(variable_mapping, max_lambda, direction));
 
 	if (a_k.φ <= (δ * max_lambda * φ_prime_a0) + φ_a0) {
-		const auto sz = variable_mapping.size();
-		for (size_t i = 0; i < sz; ++i) {
-			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * max_lambda;
-		}
-		if(max_index != -1)
-			variable_mapping[max_index].current_value = value_type(0.0);
+		max_adjust_variables(variable_mapping, direction, max_lambda, max_index);
 		return;
 	}
 
@@ -474,29 +495,21 @@ void update_with_derivative_interpolation_ls(IN(function_class) function, INOUT(
 		}
 
 		if ((a_k.φ <= (δ * a_k.at * φ_prime_a0) + φ_a0) & (a_k.φ_prime <= 0)) {
-			const auto sz = variable_mapping.size();
-			for (size_t i = 0; i < sz; ++i) {
-				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
-			}
+			adjust_variables(variable_mapping, a_k.at, direction);
 			return;
 		}
 	}
 }
 
-template<typename function_class>
-void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
+template<typename function_class, typename V>
+void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector<V>) variable_mapping, value_type max_lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
 	constexpr value_type δ = value_type(0.1);
 	
 	value_type a_k_at = max_lambda;
 	limiting_value a_k = limiting_value(a_k_at, function.evaluate_at_with_derivative(variable_mapping, a_k_at, direction));
 
 	if (a_k.φ <= (δ * max_lambda * φ_prime_a0) + φ_a0) {
-		const auto sz = variable_mapping.size();
-		for (size_t i = 0; i < sz; ++i) {
-			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * max_lambda;
-		}
-		if(max_index != -1)
-			variable_mapping[max_index].current_value = value_type(0.0);
+		max_adjust_variables(variable_mapping, direction, max_lambda, max_index);
 		return;
 	}
 
@@ -511,10 +524,7 @@ void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector
 	}
 
 	if((a_k.φ <= (δ * a_k.at * φ_prime_a0) + φ_a0) & (a_k.φ_prime <= 0)) {
-		const auto sz = variable_mapping.size();
-		for (size_t i = 0; i < sz; ++i) {
-			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
-		}
+		adjust_variables(variable_mapping, a_k.at, direction);
 		return;
 	}
 
@@ -551,29 +561,20 @@ void update_with_interpolation_ls(IN(function_class) function, INOUT(std::vector
 		}
 
 		if ((a_k.φ <= (δ * a_k.at * φ_prime_a0) + φ_a0) & (a_k.φ_prime <= 0)) {
-			const auto sz = variable_mapping.size();
-			for (size_t i = 0; i < sz; ++i) {
-				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
-			}
+			adjust_variables(variable_mapping, a_k.at, direction);
 			return;
 		}
 	}
 }
 
-template<typename function_class>
-void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, const value_type lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
+template<typename function_class, typename V>
+void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<V>) variable_mapping, const value_type lambda, const short max_index, const value_type φ_a0, const value_type φ_prime_a0, IN(vector_type) direction) {
 	constexpr value_type δ = value_type(0.100);
 
 	auto a_k = limiting_value(lambda, function.evaluate_at_with_derivative(variable_mapping, lambda, direction));
 
 	if (a_k.φ <= φ_a0 + δ * a_k.at * φ_prime_a0) {
-		// successful at max
-		const auto sz = variable_mapping.size();
-		for (size_t i = 0; i < sz; ++i) {
-			variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * lambda;
-		}
-		if(max_index != -1)
-			variable_mapping[max_index].current_value = value_type(0.0);
+		max_adjust_variables(variable_mapping, direction, lambda, max_index);
 		return;
 	}
 
@@ -581,11 +582,7 @@ void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var
 
 	do {
 		if((a_k.φ <= φ_a0 + δ * a_k.at * φ_prime_a0) & (a_k.φ_prime <= 0)) {
-			const auto sz = variable_mapping.size();
-			for (size_t i = 0; i < sz; ++i) {
-				variable_mapping[i].current_value += direction(variable_mapping[i].mapped_index) * a_k.at;
-				//minimum_adjust(variable_mapping[i].current_value, direction(variable_mapping[i].mapped_index), a_k.at);
-			}
+			adjust_variables(variable_mapping, a_k.at, direction);
 			return;
 		}
 
@@ -595,10 +592,10 @@ void update_with_backtrack_ls(IN(function_class) function, INOUT(std::vector<var
 	OutputDebugStringA("zero lambda");
 }
 
-template<typename function_class>
-using ls_function_type = void(*)(IN(function_class), INOUT(std::vector<var_mapping>), value_type, const short, const value_type, const value_type, IN(vector_type));
+template<typename function_class, typename V>
+using ls_function_type = void(*)(IN(function_class), INOUT(std::vector<V>), value_type, const short, const value_type, const value_type, IN(vector_type));
 
-template<ls_function_type<linear_test_function> LINE_SEARCH>
+template<ls_function_type<linear_test_function, var_mapping> LINE_SEARCH>
 std::pair<value_type, size_t> linear_steepest_descent(IN(linear_test_function) func, value_type max_v) {
 	std::vector<var_mapping> variable = {var_mapping{value_type(0.0),0}};
 
@@ -672,7 +669,7 @@ std::pair<value_type, size_t> derivitive_minimization_steepest_descent(IN(linear
 
 using reduced_gradient_to_direction_map_type = void(*)(const Eigen::Index, const Eigen::Index, IN(std::vector<var_mapping>), IN(rvector_type), INOUT(vector_type));
 
-template<typename function_class, ls_function_type<function_class> LINE_SEARCH, reduced_gradient_to_direction_map_type RG_MAP>
+template<typename function_class, ls_function_type<function_class, var_mapping> LINE_SEARCH, reduced_gradient_to_direction_map_type RG_MAP>
 void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	const auto b_size = coeff.rows();
 	const auto full = coeff.cols();
@@ -798,7 +795,7 @@ void steepest_descent(IN(function_class) function, INOUT(std::vector<var_mapping
 	} while (true);
 }
 
-template<typename function_class, ls_function_type<function_class> LINE_SEARCH>
+template<typename function_class, ls_function_type<function_class, var_mapping> LINE_SEARCH>
 void barrier_steepest_descent(INOUT(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	const auto b_size = coeff.rows();
 	const auto full = coeff.cols();
@@ -806,7 +803,6 @@ void barrier_steepest_descent(INOUT(function_class) function, INOUT(std::vector<
 
 	constexpr value_type ϵ = value_type(0.0001); // range [0, inf)
 	value_type τ = value_type(0.5);
-	value_type η = value_type(0.1);
 
 	rvector_type gradient((value_type*)_alloca(full * sizeof(value_type)), full);
 	vector_type direction((value_type*)_alloca(full * sizeof(value_type)), full);
@@ -864,108 +860,22 @@ void barrier_steepest_descent(INOUT(function_class) function, INOUT(std::vector<
 				if (v.current_value <= -ϵ)
 					satisfactory_values = false;
 			}
-			if (satisfactory_values) {
-				//satisfactory_values = true;
-				//for (IN(auto) v : variable_mapping) {
-				//	if (v.current_value <= -ϵ)
-				//		satisfactory_values = false;
-				//}
-
-				if (direction.squaredNorm() <= ϵ*ϵ)
+			if (satisfactory_values & (sn <= ϵ*ϵ))
 					break;
-				
-				/*
-				if (satisfactory_values) {
-					function.un_modified_gradient_at(variable_mapping, gradient);
-					if (is_upper_triangular) {
-						reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
-						caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
-						direction.noalias() = e_vector::Zero(full);
-						calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
-						calcuate_b_direction_ut(b_size, remainder, coeff, direction);
-					} else {
-						reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
-						caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
-						direction.noalias() = e_vector::Zero(full);
-						calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
-						calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
-					}
 
-					if (direction.squaredNorm() <= ϵ*ϵ)
-						break;
-				}/**/
-
-				for (IN(auto) v : variable_mapping) {
-					if (v.mapped_index < b_size) {
-						function.λ[v.mapped_index] = std::max(function.λ[v.mapped_index] - v.current_value / function.μ, value_type(0));
-					}
+			for (IN(auto) v : variable_mapping) {
+				if (v.mapped_index < b_size) {
+					function.λ[v.mapped_index] = std::max(function.λ[v.mapped_index] - v.current_value / function.μ, value_type(0));
 				}
-				function.μ *= value_type(0.70);
-				η = std::max(η * function.μ, ϵ);
-				τ = std::max(τ * value_type(0.06), ϵ);
-				continue;
-			} else {
-				for (IN(auto) v : variable_mapping) {
-					if (v.mapped_index < b_size) {
-						function.λ[v.mapped_index] = std::max(function.λ[v.mapped_index] - v.current_value / function.μ, value_type(0));
-					}
-				}
-				function.μ *= value_type(0.70);
-				τ = std::max(τ * value_type(0.06), ϵ);
-				η = std::max(value_type(0.1) * function.μ * value_type(0.9), ϵ);
-				continue; //reset with tighter tolerances
 			}
+			function.μ *= value_type(0.70);
+			τ = std::max(τ * value_type(0.06), ϵ);
+			continue;
 		}
 
 		// perform line search, update solution
 		const auto lm_max = max_lambda_tail(b_size, variable_mapping, direction);
-
 		const value_type m = (gradient * direction)(0, 0);
-
-#ifndef SAFETY_OFF
-		if (m > value_type(0.0)) {
-			OutputDebugStringA("not a descent direction\n");
-
-			std::stringstream strm;
-			strm << "gradient: " << gradient << "\n";
-			strm << "direction: " << direction.transpose() << "\n";
-			strm << "derivative: " << std::to_string(m) << "\n";
-
-			if (is_upper_triangular) {
-				strm << "upper triangular\n";
-				strm << "coeff: " << coeff << "\n";
-
-				reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
-				caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
-
-				strm << "reduced_n_gradient: " << reduced_n_gradient << "\n";
-
-				direction.noalias() = e_vector::Zero(full);
-				calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
-
-				strm << "direction_N: " << direction.transpose() << "\n";
-
-				calcuate_b_direction_ut(b_size, remainder, coeff, direction);
-
-				strm << "direction_B: " << direction.transpose() << "\n";
-				OutputDebugStringA(strm.str().c_str());
-			} else {
-				OutputDebugStringA("not upper triangular\n");
-
-				reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
-				caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
-
-				direction.noalias() = e_vector::Zero(full);
-				calcuate_n_direction_steepest(b_size, remainder, variable_mapping, reduced_n_gradient, direction);
-
-				calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
-			}
-
-
-			abort();
-		}
-#endif // !SAFETY_OFF
-
 
 		//const auto new_function_value = function.evaluate_at(variable_mapping);
 		//if (new_function_value >= prev_function_value)
@@ -1025,7 +935,7 @@ value_type feasible_norm_squared(const Eigen::Index base, IN(std::vector<var_map
 	return sum;
 }
 
-template<typename function_class, ls_function_type<function_class> LINE_SEARCH, cg_function_type CG_FUNCTION, restart_conditions_type RESTART_FUNCTION>
+template<typename function_class, ls_function_type<function_class, var_mapping> LINE_SEARCH, cg_function_type CG_FUNCTION, restart_conditions_type RESTART_FUNCTION>
 void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 
 	const auto b_size = coeff.rows();
@@ -1362,190 +1272,7 @@ void sof_dint_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::
 	barrier_steepest_descent<sum_of_functions_b, update_with_derivative_interpolation_ls>(function, variable_mapping, coeff, rank_starts);
 }
 
-
-void sum_of_functions::add_function(IN(std::function<value_type(const value_type*const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::vector<unsigned short>) variables) {
-	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
-	unsigned short fnum = static_cast<unsigned short>(functions.size());
-	for (const auto v : variables) {
-		variable_map.emplace_back(fnum, v);
-	}
-	functions.push_back(f);
-	function_derivatives.push_back(f_p);
-	combined_functions.emplace_back([f_p, f](const value_type* const a, const value_type* const b) { return std::make_pair(f(a),f_p(a,b)); });
-}
-
-void sum_of_functions::add_function(IN(std::function<value_type(const value_type* const)>) f, IN(std::function<value_type(const value_type* const, const value_type* const)>) f_p, IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables) {
-	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
-	unsigned short fnum = static_cast<unsigned short>(functions.size());
-	for (const auto v : variables) {
-		variable_map.emplace_back(fnum, v);
-	}
-	functions.push_back(f);
-	function_derivatives.push_back(f_p);
-	combined_functions.push_back(cf);
-}
-
-void sum_of_functions::add_function(IN(std::function<std::pair<value_type, value_type>(const value_type* const, const value_type* const)>) cf, IN(std::vector<unsigned short>) variables) {
-	max_function_size = std::max(max_function_size, unsigned int(variables.size()));
-	unsigned short fnum = static_cast<unsigned short>(functions.size());
-	for (const auto v : variables) {
-		variable_map.emplace_back(fnum, v);
-	}
-	combined_functions.push_back(cf);
-	functions.emplace_back([cf, sz = variables.size()](const value_type* const a) {
-		IN_P(value_type) space = (value_type*)_alloca(sz * sizeof(value_type));
-		memset(space, 0, sz * sizeof(value_type));
-		return cf(a, space).first; });
-	function_derivatives.emplace_back([cf](const value_type* const a, const value_type* const b) { return cf(a,b).second; });
-}
-
-value_type sum_of_functions::evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const {
-	IN_P(value_type) variable_store = (value_type*)_alloca(max_function_size * sizeof(value_type));
-	value_type current_sum = value_type(0.0);
-
-	unsigned short current_function = 0;
-	unsigned short array_index = 0;
-
-	for (IN(auto) pr : variable_map) {
-		if (pr.first != current_function) {
-			current_sum += functions[current_function](variable_store);
-			current_function = pr.first;
-			array_index = 0;
-		}
-		variable_store[array_index] = variable_mapping[pr.second].current_value;
-		++array_index;
-	}
-	current_sum += functions[current_function](variable_store);
-	return current_sum;
-}
-
-void sum_of_functions::gradient_at(IN(std::vector<var_mapping>) variable_mapping, INOUT(rvector_type) gradient) const {
-	IN_P(value_type) location = (value_type*)_alloca(max_function_size * sizeof(value_type));
-	IN_P(value_type) direction = (value_type*)_alloca(max_function_size * sizeof(value_type));
-
-	size_t outer_index = 0;
-
-	for (IN(auto) var : variable_mapping) {
-		gradient(var.mapped_index) = value_type(0.0);
-
-		unsigned short current_function = 0;
-		unsigned short array_index = 0;
-		bool touches_variable = false;
-
-		for (IN(auto) pr : variable_map) {
-			if (pr.first != current_function) {
-				if (touches_variable) {
-					gradient(var.mapped_index) += function_derivatives[current_function](location, direction);
-					touches_variable = false;
-				}
-				current_function = pr.first;
-				array_index = 0;
-			}
-			if (pr.second == outer_index) {
-				direction[array_index] = value_type(1.0);
-				location[array_index] = variable_mapping[pr.second].current_value;
-				touches_variable = true;
-			} else {
-				location[array_index] = variable_mapping[pr.second].current_value;
-				direction[array_index] = value_type(0.0);
-			}
-			++array_index;
-		}
-
-		if (touches_variable) {
-			gradient(var.mapped_index) += function_derivatives[current_function](location, direction);
-		}
-
-		++outer_index;
-	}
-}
-
-value_type sum_of_functions::evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
-	IN_P(value_type) variable_store = (value_type*)_alloca(max_function_size * sizeof(value_type));
-	value_type current_sum = value_type(0.0);
-
-	unsigned short current_function = 0;
-	unsigned short array_index = 0;
-
-	for (IN(auto) pr : variable_map) {
-		if (pr.first != current_function) {
-			current_sum += functions[current_function](variable_store);
-			current_function = pr.first;
-			array_index = 0;
-		}
-		variable_store[array_index] = variable_mapping[pr.second].current_value + direction(variable_mapping[pr.second].mapped_index) * lambda;
-		++array_index;
-	}
-	current_sum += functions[current_function](variable_store);
-	return current_sum;
-}
-
-value_type sum_of_functions::gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
-	IN_P(value_type) location = (value_type*)_alloca(max_function_size * sizeof(value_type));
-	IN_P(value_type) direction_a = (value_type*)_alloca(max_function_size * sizeof(value_type));
-
-	size_t outer_index = 0;
-	value_type sum = value_type(0.0);
-
-	unsigned short current_function = 0;
-	unsigned short array_index = 0;
-
-	for (IN(auto) pr : variable_map) {
-		if (pr.first != current_function) {
-			sum += function_derivatives[current_function](location, direction_a);
-
-			current_function = pr.first;
-			array_index = 0;
-		}
-
-		const auto dv = direction(variable_mapping[pr.second].mapped_index);
-		location[array_index] = variable_mapping[pr.second].current_value + dv * lambda;
-		direction_a[array_index] = dv;
-
-		++array_index;
-	}
-
-	sum += function_derivatives[current_function](location, direction_a);
-
-	return sum;
-}
-
-std::pair<value_type, value_type> sum_of_functions::evaluate_at_with_derivative(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
-	IN_P(value_type) location = (value_type*)_alloca(max_function_size * sizeof(value_type));
-	IN_P(value_type) direction_a = (value_type*)_alloca(max_function_size * sizeof(value_type));
-
-	size_t outer_index = 0;
-	value_type deriv_sum = value_type(0.0);
-	value_type f_sum = value_type(0.0);
-
-	unsigned short current_function = 0;
-	unsigned short array_index = 0;
-
-	for (IN(auto) pr : variable_map) {
-		if (pr.first != current_function) {
-			const auto cf_r = combined_functions[current_function](location, direction_a);
-			f_sum += cf_r.first;
-			deriv_sum += cf_r.second;
-			
-			current_function = pr.first;
-			array_index = 0;
-		}
-
-		const auto dv = direction(variable_mapping[pr.second].mapped_index);
-		location[array_index] = variable_mapping[pr.second].current_value + dv * lambda;
-		direction_a[array_index] = dv;
-
-		++array_index;
-	}
-
-	const auto cf_r = combined_functions[current_function](location, direction_a);
-	f_sum += cf_r.first;
-	deriv_sum += cf_r.second;
-
-	return std::make_pair(f_sum, deriv_sum);
-}
-
-value_type sum_of_functions_b::evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping) const {
+value_type sum_of_functions_b::evaluate_at(IN(std::vector<var_mapping>) variable_mapping) const {
 	auto eval = sum_of_functions::evaluate_at(variable_mapping);
 	for (IN(auto) v : variable_mapping) {
 		if (v.mapped_index < n) {
@@ -1570,7 +1297,7 @@ void sum_of_functions_b::un_modified_gradient_at(IN(std::vector<var_mapping>) va
 	sum_of_functions_b::gradient_at(variable_mapping, gradient);
 }
 
-value_type sum_of_functions_b::evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
+value_type sum_of_functions_b::evaluate_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
 	auto sum = sum_of_functions::evaluate_at(variable_mapping, lambda, direction);
 	for (IN(auto) v : variable_mapping) {
 		if (v.mapped_index < n) {
