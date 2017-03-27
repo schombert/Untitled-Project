@@ -42,7 +42,7 @@ inline size_t num_variables(IN(std::vector<var_mapping, T>) v) {
 	return v.size();
 }
 inline Eigen::Index num_variables(IN(vector_type) v) {
-	return v.size();
+	return v.rows();
 }
 
 template<typename T>
@@ -82,7 +82,8 @@ public:
 		gradient(0) = f_prime(variable_mapping[0].current_value);
 	}
 	value_type evaluate_at(INOUT(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
-		return f(variable_mapping[0].current_value + lambda * direction(0));
+		return f(variable_mapping[0].current_value +
+			lambda * direction(Eigen::Index(0)));
 	}
 	value_type gradient_at(IN(std::vector<var_mapping>) variable_mapping, value_type lambda, IN(vector_type) direction) const {
 		return f_prime(variable_mapping[0].current_value + lambda * direction(0));
@@ -183,7 +184,7 @@ void sum_of_functions_t<T>::gradient_at(IN(T) variable_mapping, INOUT(rvector_ty
 	IN_P(value_type) direction = (value_type*)_alloca(max_function_size * sizeof(value_type));
 
 	const auto mx = variable_mapping.size();
-	for(size_t i = 0; i < mx; ++i) {
+	for(decltype(variable_mapping.size()) i = 0; i < mx; ++i) {
 		gradient(get_variable_index(variable_mapping, i)) = value_type(0.0);
 
 		unsigned short current_function = 0;
@@ -324,12 +325,13 @@ public:
 class lm_sum_of_functions : public sum_of_functions_t<vector_type> {
 public:
 	value_type μ; // barrier multiplier
-	value_type* λ; // λ estimate
+	vector_type λ; // λ estimate
+	vector_type coeff_totals;
+	matrix_type coeff;
 
-	lm_sum_of_functions() : μ(0.5), λ(nullptr) {};
+	lm_sum_of_functions(value_type* λ_storage, value_type* totals_storage, value_type* coeff_storage, Eigen::Index c_rows, Eigen::Index c_cols) : μ(0.5), λ(λ_storage, c_rows), coeff_totals(totals_storage, c_rows), coeff(coeff_storage, c_rows, c_cols) {};
 	value_type evaluate_at(IN(vector_type) variables) const;
 	void gradient_at(IN(vector_type) variables, INOUT(rvector_type) gradient) const;
-	void un_modified_gradient_at(IN(vector_type) variables, INOUT(rvector_type) gradient) const;
 	value_type evaluate_at(IN(vector_type) variables, value_type lambda, IN(vector_type) direction) const;
 	value_type gradient_at(IN(vector_type) variables, value_type lambda, IN(vector_type) direction) const;
 	std::pair<value_type, value_type> evaluate_at_with_derivative(IN(vector_type) variables, value_type lambda, IN(vector_type) direction) const;
@@ -398,3 +400,9 @@ void sof_dm_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::ve
 void sof_bt_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
 void sof_int_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
 void sof_dint_steepest_descent_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
+
+void sof_hz_steepest_descent_m(INOUT(lm_sum_of_functions) function, INOUT(vector_type) variables);
+void sof_dm_steepest_descent_m(INOUT(lm_sum_of_functions) function, INOUT(vector_type) variables);
+void sof_bt_steepest_descent_m(INOUT(lm_sum_of_functions) function, INOUT(vector_type) variables);
+void sof_int_steepest_descent_m(INOUT(lm_sum_of_functions) function, INOUT(vector_type) variables);
+void sof_dint_steepest_descent_m(INOUT(lm_sum_of_functions) function, INOUT(vector_type) variables);

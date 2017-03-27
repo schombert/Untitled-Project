@@ -1323,6 +1323,123 @@ TEST(nlp, steepest_descent_barrier) {
 	}
 }
 
+TEST(nlp, steepest_descent_multiplier) {
+	{
+		value_type* totals_storage = (value_type*)_alloca(sizeof(value_type) * 2);
+		value_type* λ_storage = (value_type*)_alloca(sizeof(value_type) * 2);
+		value_type* c_storage = (value_type*)_alloca(sizeof(value_type) * 2 * 4);
+		lm_sum_of_functions tf(λ_storage, totals_storage, c_storage, 2, 4);
+
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{0});
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{1});
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{2});
+		tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
+			[](const value_type* at, const value_type* direction) {return direction[0] * value_type(2.0) * (at[0] - value_type(2.0)); },
+			{3});
+
+		vector_type v((value_type*)_alloca(sizeof(value_type) * 4), 4);
+		v << 2.0, 0.0, 8.0, 0.0;
+
+		tf.coeff << 1, 1, 0, 0,
+					0, 0, 1, 2;
+
+
+		sof_hz_steepest_descent_m(tf, v);
+
+		ASSERT_NEAR(1.0, v(0), 0.0001);
+		ASSERT_NEAR(1.0, v(1), 0.0001);
+		ASSERT_NEAR(2.4, v(2), 0.0001);
+		ASSERT_NEAR(2.8, v(3), 0.0001);
+
+		v << 2.0, 0.0, 8.0, 0.0;
+
+		sof_dm_steepest_descent_m(tf, v);
+
+		ASSERT_NEAR(1.0, v(0), 0.0001);
+		ASSERT_NEAR(1.0, v(1), 0.0001);
+		ASSERT_NEAR(2.4, v(2), 0.0001);
+		ASSERT_NEAR(2.8, v(3), 0.0001);
+
+		v << 2.0, 0.0, 8.0, 0.0;
+
+		sof_bt_steepest_descent_m(tf, v);
+
+		ASSERT_NEAR(1.0, v(0), 0.0001);
+		ASSERT_NEAR(1.0, v(1), 0.0001);
+		ASSERT_NEAR(2.4, v(2), 0.0001);
+		ASSERT_NEAR(2.8, v(3), 0.0001);
+
+		v << 2.0, 0.0, 8.0, 0.0;
+
+		sof_int_steepest_descent_m(tf, v); 
+
+		ASSERT_NEAR(1.0, v(0), 0.0001);
+		ASSERT_NEAR(1.0, v(1), 0.0001);
+		ASSERT_NEAR(2.4, v(2), 0.0001);
+		ASSERT_NEAR(2.8, v(3), 0.0001);
+
+		v << 2.0, 0.0, 8.0, 0.0;
+
+		sof_dint_steepest_descent_m(tf, v);
+
+		ASSERT_NEAR(1.0, v(0), 0.0001);
+		ASSERT_NEAR(1.0, v(1), 0.0001);
+		ASSERT_NEAR(2.4, v(2), 0.0001);
+		ASSERT_NEAR(2.8, v(3), 0.0001);
+		/**/
+	}
+	{
+		value_type* totals_storage = (value_type*)_alloca(sizeof(value_type) * 2);
+		value_type* λ_storage = (value_type*)_alloca(sizeof(value_type) * 2);
+		value_type* c_storage = (value_type*)_alloca(sizeof(value_type) * 2 * 4);
+		lm_sum_of_functions tf(λ_storage, totals_storage, c_storage, 2, 4);
+
+		tf.add_function([](const value_type* at) {
+			return 2.0 * at[0] * at[0] + 2.0 * at[1] * at[1] - 2.0 * at[0] * at[1] - 4.0 * at[0] - 6.0 * at[1]; },
+			[](const value_type* at, const value_type* direction) {
+				return direction[0] * (4.0 * at[0] - 2.0 * at[1] - 4.0) + direction[1] * (4.0 * at[1] - 2.0 * at[0] - 6.0); },
+				{0, 1, 2, 3});
+
+		vector_type v((value_type*)_alloca(sizeof(value_type) * 4), 4);
+		v << 0.0, 0.0, 2.0, 5.0;
+
+		tf.coeff << 1, 1, 1, 0,
+					1, 5, 0, 1;
+
+		sof_hz_steepest_descent_m(tf, v);
+
+		ASSERT_NEAR(35.0 / 31.0, v(0), 0.0001);
+		ASSERT_NEAR(24.0 / 31.0, v(1), 0.0001);
+		ASSERT_NEAR(3.0 / 31.0, v(2), 0.0001);
+		ASSERT_NEAR(0.0, v(3), 0.0001);
+
+		const auto eval = tf.evaluate_at(v);
+
+		v << 0.0, 0.0, 2.0, 5.0;
+		sof_dm_steepest_descent_m(tf, v);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+
+		v << 0.0, 0.0, 2.0, 5.0;
+		sof_bt_steepest_descent_m(tf, v);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+
+		v << 0.0, 0.0, 2.0, 5.0;
+		sof_int_steepest_descent_m(tf, v);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+
+		v << 0.0, 0.0, 2.0, 5.0;
+		sof_dint_steepest_descent_m(tf, v);
+		ASSERT_GE(eval + 0.0001, tf.evaluate_at(v));
+	}
+}
+
+
 TEST(nlp, conjugate_gradient) {
 	sum_of_functions tf;
 	tf.add_function([](const value_type* at) { return (at[0] - value_type(2.0)) * (at[0] - value_type(2.0)); },
@@ -1559,8 +1676,6 @@ TEST(nlp, conjugate_gradient_b) {
 			return direction[0] * (4.0 * at[0] - 2.0 * at[1] - 4.0) + direction[1] * (4.0 * at[1] - 2.0 * at[0] - 6.0); },
 			{0, 1, 2, 3});
 
-	//_control87(_EM_INVALID | _EM_DENORMAL | _EM_ZERODIVIDE | _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INEXACT, _MCW_EM);
-
 	std::vector<var_mapping> v = {
 		var_mapping{0.0, 0},
 		var_mapping{0.0, 1},
@@ -1620,18 +1735,131 @@ TEST(nlp, with_utility_functions) {
 	flat_multimap<unsigned short, unsigned short> ranks;
 	setup_rank_map(coeff, v, ranks);
 
-	sof_hz_conjugate_gradient(tf, v, coeff, ranks);
 
+	__int64 itimestamp = 0;
+	__int64 endstamp = 0;
 	std::string result;
-	result += "saved money: " + std::to_string(v[0].current_value) + "\n";
-	result += "saved votes: " + std::to_string(v[1].current_value) + "\n";
-	result += "saved troops: " + std::to_string(v[2].current_value) + "\n";
-	result += "qty used for vote: " + std::to_string(v[3].current_value) + "\n";
-	result += "money in war: " + std::to_string(v[4].current_value) + "\n";
-	// result += "troops in war: " + std::to_string(v[5].current_value) + "\n";
-	result += "money -> troops: " + std::to_string(v[5].current_value) + "\n";
-	result += "money -> votes: " + std::to_string(v[6].current_value) + "\n";
-	result += "votes -> money: " + std::to_string(v[7].current_value) + "\n";
-	result += "current evaluation: " + std::to_string(tf.evaluate_at(v)) + "\n";
-	OutputDebugStringA(result.c_str());
+
+	std::vector<std::pair<std::string, void(*)(IN(sum_of_functions), INOUT(std::vector<var_mapping>), INOUT(matrix_type), IN(flat_multimap<unsigned short, unsigned short>))>> standard_set;
+	standard_set.emplace_back("sof_hz_steepest_descent", sof_hz_steepest_descent);
+	standard_set.emplace_back("sof_m_hz_steepest_descent", sof_m_hz_steepest_descent);
+	standard_set.emplace_back("sof_dm_steepest_descent", sof_dm_steepest_descent);
+	standard_set.emplace_back("sof_m_dm_steepest_descent", sof_m_dm_steepest_descent);
+	standard_set.emplace_back("sof_bt_steepest_descent", sof_bt_steepest_descent);
+	standard_set.emplace_back("sof_m_bt_steepest_descent", sof_m_bt_steepest_descent);
+	standard_set.emplace_back("sof_int_steepest_descent", sof_int_steepest_descent);
+	standard_set.emplace_back("sof_m_int_steepest_descent", sof_m_int_steepest_descent);
+	standard_set.emplace_back("sof_dint_steepest_descent", sof_dint_steepest_descent);
+	standard_set.emplace_back("sof_m_dint_steepest_descent", sof_m_dint_steepest_descent);
+	standard_set.emplace_back("sof_hz_conjugate_gradient", sof_hz_conjugate_gradient);
+	standard_set.emplace_back("sof_hz_dm_conjugate_gradient", sof_hz_dm_conjugate_gradient);
+	standard_set.emplace_back("sof_hz_bt_conjugate_gradient", sof_hz_bt_conjugate_gradient);
+	standard_set.emplace_back("sof_hz_int_conjugate_gradient", sof_hz_int_conjugate_gradient);
+	standard_set.emplace_back("sof_hz_dint_conjugate_gradient", sof_hz_dint_conjugate_gradient);
+	standard_set.emplace_back("sof_hs_hz_conjugate_gradient", sof_hs_hz_conjugate_gradient);
+	standard_set.emplace_back("sof_hs_dm_conjugate_gradient", sof_hs_dm_conjugate_gradient);
+	standard_set.emplace_back("sof_hs_bt_conjugate_gradient", sof_hs_bt_conjugate_gradient);
+	standard_set.emplace_back("sof_hs_int_conjugate_gradient", sof_hs_int_conjugate_gradient);
+	standard_set.emplace_back("sof_hs_dint_conjugate_gradient", sof_hs_dint_conjugate_gradient);
+	standard_set.emplace_back("sof_pr_hz_conjugate_gradient", sof_pr_hz_conjugate_gradient);
+	standard_set.emplace_back("sof_pr_dm_conjugate_gradient", sof_pr_dm_conjugate_gradient);
+	standard_set.emplace_back("sof_pr_bt_conjugate_gradient", sof_pr_bt_conjugate_gradient);
+	standard_set.emplace_back("sof_pr_int_conjugate_gradient", sof_pr_int_conjugate_gradient);
+	standard_set.emplace_back("sof_pr_dint_conjugate_gradient", sof_pr_dint_conjugate_gradient);
+	standard_set.emplace_back("sof_prp_hz_conjugate_gradient", sof_prp_hz_conjugate_gradient);
+	standard_set.emplace_back("sof_prp_dm_conjugate_gradient", sof_prp_dm_conjugate_gradient);
+	standard_set.emplace_back("sof_prp_bt_conjugate_gradient", sof_prp_bt_conjugate_gradient);
+	standard_set.emplace_back("sof_prp_int_conjugate_gradient", sof_prp_int_conjugate_gradient);
+	standard_set.emplace_back("sof_prp_dint_conjugate_gradient", sof_prp_dint_conjugate_gradient);
+	standard_set.emplace_back("sof_fr_hz_conjugate_gradient", sof_fr_hz_conjugate_gradient);
+	standard_set.emplace_back("sof_fr_dm_conjugate_gradient", sof_fr_dm_conjugate_gradient);
+	standard_set.emplace_back("sof_fr_bt_conjugate_gradient", sof_fr_bt_conjugate_gradient);
+	standard_set.emplace_back("sof_fr_int_conjugate_gradient", sof_fr_int_conjugate_gradient);
+	standard_set.emplace_back("sof_fr_dint_conjugate_gradient", sof_fr_dint_conjugate_gradient);
+	
+	for (IN(auto) pr : standard_set) {
+		QueryPerformanceCounter((LARGE_INTEGER*)&itimestamp);
+		double least_result = max_value<double>::value;
+		for (size_t i = 0; i < 10; ++i) {
+			v[0].current_value = 10.0; v[1].current_value = 3.0; v[2].current_value = 5.0; v[3].current_value = 0.0;
+			v[4].current_value = 0.0; v[5].current_value = 0.0; v[6].current_value = 0.0; v[7].current_value = 0.0;
+
+			pr.second(tf, v, coeff, ranks);
+			least_result = std::min(least_result, tf.evaluate_at(v));
+		}
+		QueryPerformanceCounter((LARGE_INTEGER*)&endstamp);
+
+		result = pr.first + ": " + std::to_string(endstamp - itimestamp) + ", value: " + std::to_string(least_result) + "\n";
+		OutputDebugStringA(result.c_str());
+	}
+
+	
+	sum_of_functions_b tfv;
+	tfv.add_function_t(saving_valuation_set(0.1), {0});
+	tfv.add_function_t(saving_valuation_set(0.2), {1});
+	tfv.add_function_t(voting_contest_set(5, -1, 9, 1, 2, 3), {3});
+	tfv.add_function_t(military_simple_contest_set(4, -6, 0.1, 10), {4});
+
+	std::vector<std::pair<std::string, void(*)(INOUT(sum_of_functions_b), INOUT(std::vector<var_mapping>), INOUT(matrix_type), IN(flat_multimap<unsigned short, unsigned short>))>> b_set;
+	b_set.emplace_back("sof_hz_steepest_descent_b", sof_hz_steepest_descent_b);
+	b_set.emplace_back("sof_dm_steepest_descent_b", sof_dm_steepest_descent_b);
+	b_set.emplace_back("sof_bt_steepest_descent_b", sof_bt_steepest_descent_b);
+	b_set.emplace_back("sof_int_steepest_descent_b", sof_int_steepest_descent_b);
+	b_set.emplace_back("sof_dint_steepest_descent_b", sof_dint_steepest_descent_b);
+
+	for (IN(auto) pr : b_set) {
+		QueryPerformanceCounter((LARGE_INTEGER*)&itimestamp);
+		double least_result = max_value<double>::value;
+		for (size_t i = 0; i < 10; ++i) {
+			v[0].current_value = 10.0; v[1].current_value = 3.0; v[2].current_value = 5.0; v[3].current_value = 0.0;
+			v[4].current_value = 0.0; v[5].current_value = 0.0; v[6].current_value = 0.0; v[7].current_value = 0.0;
+
+			pr.second(tfv, v, coeff, ranks);
+			least_result = std::min(least_result, tfv.evaluate_at(v));
+		}
+		QueryPerformanceCounter((LARGE_INTEGER*)&endstamp);
+
+		result = pr.first + ": " + std::to_string(endstamp - itimestamp) + ", value: " + std::to_string(least_result) + "\n";
+		OutputDebugStringA(result.c_str());
+	}
+
+	value_type* totals_storage = (value_type*)_alloca(sizeof(value_type) * 3);
+	value_type* λ_storage = (value_type*)_alloca(sizeof(value_type) * 3);
+	value_type* c_storage = (value_type*)_alloca(sizeof(value_type) * 3 * 8);
+	lm_sum_of_functions tfc(λ_storage, totals_storage, c_storage, 3, 8);
+
+	tfc.add_function_t(saving_valuation_set(0.1), {0});
+	tfc.add_function_t(saving_valuation_set(0.2), {1});
+	tfc.add_function_t(voting_contest_set(5, -1, 9, 1, 2, 3), {3});
+	tfc.add_function_t(military_simple_contest_set(4, -6, 0.1, 10), {4});
+
+	vector_type va((value_type*)_alloca(sizeof(value_type) * 8), 8);
+	va << 10.0, 3.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+
+	tfc.coeff <<	1, 0, 0, 0, 1, 1, 5, -4,
+					0, 1, 0, 1, 0, 0, -1, 1,
+					0, 0, 1, 0, 10, -10, 0, 0;
+
+	std::vector<std::pair<std::string, void(*)(INOUT(lm_sum_of_functions), INOUT(vector_type))>> c_set;
+	c_set.emplace_back("sof_hz_steepest_descent_m", sof_hz_steepest_descent_m);
+	c_set.emplace_back("sof_dm_steepest_descent_m", sof_dm_steepest_descent_m);
+	c_set.emplace_back("sof_bt_steepest_descent_m", sof_bt_steepest_descent_m);
+	c_set.emplace_back("sof_dint_steepest_descent_m", sof_dint_steepest_descent_m);
+	c_set.emplace_back("sof_int_steepest_descent_m", sof_int_steepest_descent_m);
+
+	for (IN(auto) pr : c_set) {
+		QueryPerformanceCounter((LARGE_INTEGER*)&itimestamp);
+		double least_result = max_value<double>::value;
+		for (size_t i = 0; i < 10; ++i) {
+			va << 10.0, 3.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+
+			pr.second(tfc, va);
+			least_result = std::min(least_result, tfc.evaluate_at(va));
+		}
+		QueryPerformanceCounter((LARGE_INTEGER*)&endstamp);
+
+		result = pr.first + ": " + std::to_string(endstamp - itimestamp) + ", value: " + std::to_string(least_result) + "\n";
+		OutputDebugStringA(result.c_str());
+	}
+
 }
