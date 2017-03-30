@@ -384,6 +384,10 @@ void sof_fr_bt_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vect
 void sof_fr_int_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
 void sof_fr_dint_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
 
+void sof_hz_dint_conjugate_gradient_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
+
+void sof_integer_descent(IN(sum_of_functions_t<vector_type>) function, INOUT(vector_type) variables, IN_P(value_type) max, IN(matrix_type) coeff);
+
 void sof_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
 void sof_m_hz_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);
 void sof_dm_steepest_descent(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts);

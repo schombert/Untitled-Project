@@ -65,16 +65,17 @@ inline auto military_contest_set(double v_success, double v_failure, double forc
 inline auto military_simple_contest_set(double v_success, double v_failure, double force_cost, double e_force_quanity) {
 	return std::make_tuple([=](const IN_P(double) var) {
 			const auto fq = var[0] / force_cost;
-			const auto tfq = e_force_quanity + fq;
-			return (-v_success * fq + -v_failure * e_force_quanity) / tfq;
+			const auto tfq = e_force_quanity * e_force_quanity + fq * fq;
+			return (-v_success * fq * fq + -v_failure * e_force_quanity  * e_force_quanity) / tfq;
 		}, [=](const IN_P(double) var, const IN_P(double) direction) {
 			const auto fq = var[0] / force_cost;
 			const auto tfq = e_force_quanity + fq;
-			return (v_failure - v_success) * e_force_quanity * direction[0] / (tfq*tfq);
+			return ((-2.0 * v_success * var[0] / (tfq * force_cost * force_cost)) + (-2.0 * var[0] * (-v_success * fq * fq + -v_failure * e_force_quanity * e_force_quanity) / (tfq * tfq * force_cost * force_cost))) * direction[0] ;
 		}, [=](const IN_P(double) var, const IN_P(double) direction) {
 			const auto fq = var[0] / force_cost;
-			const auto tfq = e_force_quanity + fq;
-			return std::make_pair((-v_success * fq + -v_failure * e_force_quanity) / tfq, (v_failure - v_success) * e_force_quanity * direction[0] / (tfq*tfq));
+			const auto tfq = e_force_quanity * e_force_quanity + fq * fq;
+			return std::make_pair((-v_success * fq * fq + -v_failure * e_force_quanity  * e_force_quanity) / tfq,
+				((-2.0 * v_success * var[0] / (tfq * force_cost * force_cost)) + (-2.0 * var[0] * (-v_success * fq * fq + -v_failure * e_force_quanity * e_force_quanity) / (tfq * tfq * force_cost * force_cost))) * direction[0]);
 		});
 }
 

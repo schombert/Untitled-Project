@@ -1723,14 +1723,16 @@ TEST(nlp, with_utility_functions) {
 		var_mapping{0.0, 3}, // qty used for vote
 		var_mapping{0.0, 4}, // money & troops in war
 		// var_mapping{0.0, 5}, // troops in war
-		var_mapping{0.0, 5}, // money -> troops
-		var_mapping{0.0, 6}, // money -> votes
-		var_mapping{0.0, 7}}; // votes -> money
+		// var_mapping{0.0, 5}, // money -> troops
+		// var_mapping{0.0, 6}, // money -> votes
+		// var_mapping{0.0, 7} // votes -> money
+	};
 
-	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 3 * 8), 3, 8);
-	coeff <<	1, 0, 0, 0, 1, 1, 5, -4,
-				0, 1, 0, 1, 0, 0, -1, 1, 
-				0, 0, 1, 0, 10, -10, 0, 0;
+	// matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 3 * 8), 3, 8);
+	matrix_type coeff((value_type*)_alloca(sizeof(value_type) * 3 * 5), 3, 5);
+	coeff <<	1, 0, 0, 0, .1, // 1, 5, -4,
+				0, 1, 0, 1, 0, // 0, -1, 1, 
+				0, 0, 1, 0, 1; //, -10, 0, 0;
 
 	flat_multimap<unsigned short, unsigned short> ranks;
 	setup_rank_map(coeff, v, ranks);
@@ -1782,7 +1784,7 @@ TEST(nlp, with_utility_functions) {
 		double least_result = max_value<double>::value;
 		for (size_t i = 0; i < 10; ++i) {
 			v[0].current_value = 10.0; v[1].current_value = 3.0; v[2].current_value = 5.0; v[3].current_value = 0.0;
-			v[4].current_value = 0.0; v[5].current_value = 0.0; v[6].current_value = 0.0; v[7].current_value = 0.0;
+			v[4].current_value = 0.0; // v[5].current_value = 0.0; v[6].current_value = 0.0; v[7].current_value = 0.0;
 
 			pr.second(tf, v, coeff, ranks);
 			least_result = std::min(least_result, tf.evaluate_at(v));
@@ -1806,16 +1808,17 @@ TEST(nlp, with_utility_functions) {
 	b_set.emplace_back("sof_bt_steepest_descent_b", sof_bt_steepest_descent_b);
 	b_set.emplace_back("sof_int_steepest_descent_b", sof_int_steepest_descent_b);
 	b_set.emplace_back("sof_dint_steepest_descent_b", sof_dint_steepest_descent_b);
+	b_set.emplace_back("sof_hz_dint_conjugate_gradient_b", sof_hz_dint_conjugate_gradient_b);
 
 	for (IN(auto) pr : b_set) {
 		QueryPerformanceCounter((LARGE_INTEGER*)&itimestamp);
 		double least_result = max_value<double>::value;
 		for (size_t i = 0; i < 10; ++i) {
 			v[0].current_value = 10.0; v[1].current_value = 3.0; v[2].current_value = 5.0; v[3].current_value = 0.0;
-			v[4].current_value = 0.0; v[5].current_value = 0.0; v[6].current_value = 0.0; v[7].current_value = 0.0;
+			v[4].current_value = 0.0; // v[5].current_value = 0.0; v[6].current_value = 0.0; v[7].current_value = 0.0;
 
 			pr.second(tfv, v, coeff, ranks);
-			least_result = std::min(least_result, tfv.evaluate_at(v));
+			least_result = std::min(least_result, ((sum_of_functions*)&tfv)->evaluate_at(v));
 		}
 		QueryPerformanceCounter((LARGE_INTEGER*)&endstamp);
 
@@ -1825,8 +1828,10 @@ TEST(nlp, with_utility_functions) {
 
 	value_type* totals_storage = (value_type*)_alloca(sizeof(value_type) * 3);
 	value_type* λ_storage = (value_type*)_alloca(sizeof(value_type) * 3);
-	value_type* c_storage = (value_type*)_alloca(sizeof(value_type) * 3 * 8);
-	lm_sum_of_functions tfc(λ_storage, totals_storage, c_storage, 3, 8);
+	// value_type* c_storage = (value_type*)_alloca(sizeof(value_type) * 3 * 8);
+	// lm_sum_of_functions tfc(λ_storage, totals_storage, c_storage, 3, 8);
+	value_type* c_storage = (value_type*)_alloca(sizeof(value_type) * 3 * 5);
+	lm_sum_of_functions tfc(λ_storage, totals_storage, c_storage, 3, 5);
 
 	tfc.add_function_t(saving_valuation_set(0.1), {0});
 	tfc.add_function_t(saving_valuation_set(0.2), {1});
@@ -1834,11 +1839,11 @@ TEST(nlp, with_utility_functions) {
 	tfc.add_function_t(military_simple_contest_set(4, -6, 0.1, 10), {4});
 
 	vector_type va((value_type*)_alloca(sizeof(value_type) * 8), 8);
-	va << 10.0, 3.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+	va << 10.0, 3.0, 5.0, 0.0, 0.0; // , 0.0, 0.0, 0.0;
 
-	tfc.coeff <<	1, 0, 0, 0, 1, 1, 5, -4,
-					0, 1, 0, 1, 0, 0, -1, 1,
-					0, 0, 1, 0, 10, -10, 0, 0;
+	tfc.coeff <<	1, 0, 0, 0, .1, //1, 5, -4,
+					0, 1, 0, 1, 0, //0, -1, 1,
+					0, 0, 1, 0, 1; // -10, 0, 0;
 
 	std::vector<std::pair<std::string, void(*)(INOUT(lm_sum_of_functions), INOUT(vector_type))>> c_set;
 	c_set.emplace_back("sof_hz_steepest_descent_m", sof_hz_steepest_descent_m);
@@ -1851,10 +1856,10 @@ TEST(nlp, with_utility_functions) {
 		QueryPerformanceCounter((LARGE_INTEGER*)&itimestamp);
 		double least_result = max_value<double>::value;
 		for (size_t i = 0; i < 10; ++i) {
-			va << 10.0, 3.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+			va << 10.0, 3.0, 5.0, 0.0, 0.0;//, 0.0, 0.0, 0.0;
 
 			pr.second(tfc, va);
-			least_result = std::min(least_result, tfc.evaluate_at(va));
+			least_result = std::min(least_result, ((sum_of_functions_t<vector_type>*)&tfc)->evaluate_at(va));
 		}
 		QueryPerformanceCounter((LARGE_INTEGER*)&endstamp);
 
@@ -1862,4 +1867,26 @@ TEST(nlp, with_utility_functions) {
 		OutputDebugStringA(result.c_str());
 	}
 
+	value_type maxs[3] = {10.0, 3.0, 5.0};
+	sum_of_functions_t<vector_type> tfd;
+
+	tfd.add_function_t(saving_valuation_set(0.1), {0});
+	tfd.add_function_t(saving_valuation_set(0.2), {1});
+	tfd.add_function_t(voting_contest_set(5, -1, 9, 1, 2, 3), {3});
+	tfd.add_function_t(military_simple_contest_set(4, -6, 0.1, 10), {4});
+
+	sof_integer_descent(tfd, va, maxs, coeff);
+
+	QueryPerformanceCounter((LARGE_INTEGER*)&itimestamp);
+	double least_result = max_value<double>::value;
+	for (size_t i = 0; i < 10; ++i) {
+		va << 0.0, 0.0, 0.0, 0.0, 0.0;//, 0.0, 0.0, 0.0;
+
+		sof_integer_descent(tfd, va, maxs, coeff);
+		least_result = std::min(least_result, tfd.evaluate_at(va));
+	}
+	QueryPerformanceCounter((LARGE_INTEGER*)&endstamp);
+
+	result = std::string("sof_integer_descent") + ": " + std::to_string(endstamp - itimestamp) + ", value: " + std::to_string(least_result) + "\n";
+	OutputDebugStringA(result.c_str());
 }

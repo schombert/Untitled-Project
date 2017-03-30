@@ -606,7 +606,8 @@ void update_with_backtrack_ls(IN(function_class) function, INOUT(V) variable_map
 		a_k = limiting_value(a_k.at * value_type(0.5), function.evaluate_at_with_derivative(variable_mapping, a_k.at * value_type(0.5), direction));
 	} while (a_k.at != 0);
 
-	OutputDebugStringA("zero lambda");
+	adjust_variables(variable_mapping, std::nextafter(0, 1), direction);
+	//OutputDebugStringA("zero lambda");
 }
 
 template<typename function_class, typename V>
@@ -998,6 +999,78 @@ void multiplier_steepest_descent(INOUT(function_class) function, INOUT(vector_ty
 	//OutputDebugStringA(cnt.c_str());
 }
 
+bool within_maximum(IN(vector_type) current_totals, IN_P(value_type) max, const Eigen::Index m) {
+	for (Eigen::Index i = 0; i < m; ++i) {
+		if (current_totals(i) > max[i])
+			return false;
+	}
+	return true;
+}
+
+template<typename function_class>
+void integer_descent(IN(function_class) function, INOUT(vector_type) variables, IN_P(value_type) max, IN(matrix_type) coeff) {
+	const auto b_size = coeff.rows();
+	const auto full = coeff.cols();
+
+	vector_type descent_value((value_type*)_alloca(b_size * sizeof(value_type)), full);
+	vector_type current_totals((value_type*)_alloca(b_size * sizeof(value_type)), b_size);
+
+	for (Eigen::Index i = 0; i < full; ++i) {
+		variables(i) = max_value<value_type>::value;
+		for (Eigen::Index j = 0; j < b_size; j++) {
+			if(coeff(j, i) != value_type(0))
+				variables(i) = std::min(variables(i), std::floor(max[j] / coeff(j, i)));
+		}
+	}
+	current_totals.noalias() = coeff * variables;
+
+	value_type current_f_value = function.evaluate_at(variables);
+	for (Eigen::Index i = 0; i < full; ++i) {
+		if (variables(i) >= 1) {
+			variables(i) -= value_type(1);
+			descent_value(i) = function.evaluate_at(variables);
+			variables(i) += value_type(1);
+		} else {
+			descent_value(i) = max_value<value_type>::value;
+		}
+	}
+
+#ifndef SAFETY_OFF
+	size_t iteration_count = 0;
+#endif
+
+	while(true) {
+		Eigen::Index best = -1;
+		value_type least_value = max_value<value_type>::value;
+		for (Eigen::Index i = 0; i < full; ++i) {
+			if (variables(i) > value_type(0)) {
+
+				bool applies = false;
+				for (Eigen::Index j = 0; (j < b_size) & !applies; j++) {
+					if ((coeff(j, i) != value_type(0)) & (current_totals(j) > max[j]))
+						applies = true;
+				}
+				if (applies && descent_value(i) < least_value) {
+					best = i;
+					least_value = descent_value(i);
+				}
+			}
+		}
+		if (best == -1)
+			break;
+
+		variables(best) -= value_type(2);
+		descent_value(best) = function.evaluate_at(variables);
+		variables(best) += value_type(1);
+		current_totals.noalias() = coeff * variables;
+	}
+}
+
+void sof_integer_descent(IN(sum_of_functions_t<vector_type>) function, INOUT(vector_type) variables, IN_P(value_type) max, IN(matrix_type) coeff) {
+	integer_descent(function, variables, max, coeff);
+}
+
+
 using restart_conditions_type = bool(*)(size_t, size_t, IN(rvector_type), IN(rvector_type), IN(rvector_type));
 
 bool basic_restart_condition(size_t restart_count, size_t variable_count, IN(rvector_type) new_cg, IN(rvector_type) previous_gradient, IN(rvector_type) current_gradient) {
@@ -1030,6 +1103,16 @@ value_type feasible_norm_squared(const Eigen::Index base, IN(std::vector<var_map
 	return sum;
 }
 
+value_type feasible_norm_squared_b(const Eigen::Index base, IN(std::vector<var_mapping>) variable_mapping, IN(rvector_type) gradient) {
+	value_type sum = value_type(0.0);
+	for (IN(auto) v : variable_mapping) {
+		if ( (v.mapped_index < base) | (v.current_value > value_type(0.0)) | (gradient(v.mapped_index) < value_type(0.0)) ) {
+			sum += gradient(v.mapped_index) * gradient(v.mapped_index);
+		}
+	}
+	return sum;
+}
+
 template<typename function_class, ls_function_type<function_class, std::vector<var_mapping>> LINE_SEARCH, cg_function_type CG_FUNCTION, restart_conditions_type RESTART_FUNCTION>
 void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 
@@ -1044,8 +1127,8 @@ void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<va
 	rvector_type gradient((value_type*)_alloca(full * sizeof(value_type)), full);
 	vector_type direction((value_type*)_alloca(full * sizeof(value_type)), full);
 
-	rvector_type prev_cg((value_type*)_alloca(remainder * sizeof(value_type)), full);
-	rvector_type new_cg((value_type*)_alloca(remainder * sizeof(value_type)), full);
+	rvector_type prev_cg((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+	rvector_type new_cg((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
 	rvector_type prev_reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
 	rvector_type reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
 
@@ -1199,13 +1282,161 @@ void conjugate_gradient_method(IN(function_class) function, INOUT(std::vector<va
 	} while (true);
 }
 
-/*
-cg_hestenes_stiefel
-cg_hager_zhang
-cg_polak_ribiere
-cg_polak_ribiere_plus
-cg_fletcher_reeves
-*/
+template<typename function_class, ls_function_type<function_class, std::vector<var_mapping>> LINE_SEARCH, cg_function_type CG_FUNCTION, restart_conditions_type RESTART_FUNCTION>
+void barrier_conjugate_gradient_method(INOUT(function_class) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+
+	const auto b_size = coeff.rows();
+	const auto full = coeff.cols();
+	const auto remainder = full - b_size;
+
+	const auto sz = variable_mapping.size();
+
+	constexpr value_type ϵ = value_type(0.0001); // range [0, inf)
+	value_type τ = value_type(0.5);
+
+	rvector_type gradient((value_type*)_alloca(full * sizeof(value_type)), full);
+	vector_type direction((value_type*)_alloca(full * sizeof(value_type)), full);
+
+	rvector_type prev_cg((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+	rvector_type new_cg((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+	rvector_type prev_reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+	rvector_type reduced_n_gradient((value_type*)_alloca(remainder * sizeof(value_type)), remainder);
+
+	optimize_basis(b_size, coeff, variable_mapping, rank_starts);
+
+	matrix_type LU_store((value_type*)_alloca(sizeof(value_type) * b_size * b_size), b_size, b_size);
+	LU_store = coeff.leftCols(b_size);
+	Eigen::PartialPivLU<Eigen::Ref<matrix_type>> LU_decomp(LU_store);
+
+	const bool is_upper_triangular = coeff.leftCols(b_size).isUpperTriangular();
+	function.μ = value_type(0.5);
+	function.n = b_size;
+	function.λ = (value_type*)_alloca(b_size * sizeof(value_type));
+	for (Eigen::Index i = 0; i < b_size; ++i)
+		function.λ[i] = value_type(0.0);
+
+#ifndef SAFETY_OFF
+	size_t iteration_count = 1;
+#endif
+
+	size_t restart_count = 0;
+
+	//first iteration: steepest descent
+	{
+		gradient.noalias() = e_row_vector::Zero(full);
+
+		function.gradient_at(variable_mapping, gradient);
+		reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+		if (is_upper_triangular)
+			caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
+		else
+			caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
+		new_cg.noalias() = reduced_n_gradient;
+		prev_reduced_n_gradient.noalias() = reduced_n_gradient;
+		prev_cg.noalias() = reduced_n_gradient;
+
+		direction.noalias() = e_vector::Zero(full);
+		calcuate_n_direction_steepest(b_size, remainder, variable_mapping, new_cg, direction);
+		if (is_upper_triangular)
+			calcuate_b_direction_ut(b_size, remainder, coeff, direction);
+		else
+			calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
+
+		const auto lm_max = max_lambda_tail(b_size, variable_mapping, direction);
+
+		const value_type m = (gradient * direction)(0, 0);
+		if (lm_max.second != -1) {
+			if (lm_max.first <= 128.0 * 128.0 * 128.0)
+				LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, function.evaluate_at(variable_mapping), m, direction);
+			else
+				LINE_SEARCH(function, variable_mapping, 128.0 * 128.0 * 128.0, -1, function.evaluate_at(variable_mapping), m, direction);
+		} else {
+			LINE_SEARCH(function, variable_mapping, 128.0, lm_max.second, function.evaluate_at(variable_mapping), m, direction);
+		}
+	}
+
+	//second + iteration
+	do {
+		gradient.noalias() = e_row_vector::Zero(full);
+
+		function.gradient_at(variable_mapping, gradient);
+		reduced_n_gradient.noalias() = e_row_vector::Zero(remainder);
+		if (is_upper_triangular)
+			caclulate_reduced_n_gradient_ut(b_size, remainder, coeff, gradient, reduced_n_gradient);
+		else
+			caclulate_reduced_n_gradient_LU(b_size, remainder, coeff, LU_decomp, gradient, reduced_n_gradient);
+
+		new_cg.noalias() = reduced_n_gradient + CG_FUNCTION(reduced_n_gradient, prev_reduced_n_gradient, prev_cg) * prev_cg;
+
+		++restart_count;
+		if (RESTART_FUNCTION(restart_count, remainder, new_cg, prev_reduced_n_gradient, reduced_n_gradient)) {
+			restart_count = 0;
+			new_cg.noalias() = reduced_n_gradient;
+		}
+
+		prev_reduced_n_gradient.noalias() = reduced_n_gradient;
+		prev_cg.noalias() = new_cg;
+
+		direction.noalias() = e_vector::Zero(full);
+		calcuate_n_direction_steepest(b_size, remainder, variable_mapping, new_cg, direction);
+		if (is_upper_triangular)
+			calcuate_b_direction_ut(b_size, remainder, coeff, direction);
+		else
+			calcuate_b_direction_LU(b_size, remainder, coeff, LU_decomp, direction);
+
+
+		const auto sn = feasible_norm_squared_b(b_size, variable_mapping, gradient);
+		// const auto sn = gradient.squaredNorm();
+		if (sn <= τ*τ) {
+			// do final convergence test
+			bool satisfactory_values = true;
+			for (IN(auto) v : variable_mapping) {
+				if (v.current_value <= -ϵ)
+					satisfactory_values = false;
+			}
+			if (satisfactory_values & (sn <= ϵ*ϵ))
+				break;
+
+			if (!satisfactory_values) {
+				for (IN(auto) v : variable_mapping) {
+					if (v.mapped_index < b_size) {
+						function.λ[v.mapped_index] = std::max(function.λ[v.mapped_index] - v.current_value / function.μ, value_type(0));
+					}
+				}
+				function.μ *= value_type(0.75);
+			}
+			τ = std::max(τ * value_type(0.05), ϵ);
+			restart_count = remainder;
+			continue;
+		}
+
+		// perform line search, update solution
+		const auto lm_max = max_lambda_tail(b_size, variable_mapping, direction);
+		const value_type m = (gradient * direction)(0, 0);
+
+		if (m < 0.0) {
+			if (lm_max.second != -1)
+				if (lm_max.first <= 128.0 * 128.0 * 128.0)
+					LINE_SEARCH(function, variable_mapping, lm_max.first, lm_max.second, function.evaluate_at(variable_mapping), m, direction);
+				else
+					LINE_SEARCH(function, variable_mapping, 128.0 * 128.0 * 128.0, -1, function.evaluate_at(variable_mapping), m, direction);
+			else
+				LINE_SEARCH(function, variable_mapping, 128.0, lm_max.second, function.evaluate_at(variable_mapping), m, direction);
+		}
+
+#ifndef SAFETY_OFF
+		if (++iteration_count > 250) {
+			OutputDebugStringA("hit iteration limit (bcg)\n");
+			break;
+		}
+#endif
+	} while (true);
+}
+
+void sof_hz_dint_conjugate_gradient_b(INOUT(sum_of_functions_b) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
+	barrier_conjugate_gradient_method<sum_of_functions_b, update_with_derivative_interpolation_ls, cg_hager_zhang, ensure_descent_direction>(function, variable_mapping, coeff, rank_starts);
+}
+
 
 void sof_hz_conjugate_gradient(IN(sum_of_functions) function, INOUT(std::vector<var_mapping>) variable_mapping, INOUT(matrix_type) coeff, IN(flat_multimap<unsigned short, unsigned short>) rank_starts) {
 	conjugate_gradient_method<sum_of_functions, update_with_hager_zhang_ls, cg_hager_zhang, basic_restart_condition>(function, variable_mapping, coeff, rank_starts);
